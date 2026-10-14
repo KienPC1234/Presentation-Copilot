@@ -1,0 +1,243 @@
+<Window x:Class="PresentationCopilot.Views.HudWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:converters="clr-namespace:PresentationCopilot.Converters"
+        Title="Presentation Copilot HUD"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        Topmost="True"
+        ShowInTaskbar="False"
+        ResizeMode="NoResize"
+        Width="440"
+        SizeToContent="Height"
+        Left="50" Top="50"
+        KeyDown="Window_KeyDown">
+
+    <Window.Resources>
+        <converters:BoolToColorConverter x:Key="BoolToColor" />
+        <converters:BoolToVisibilityConverter x:Key="BoolToVis" />
+
+        <Style x:Key="KeywordChip" TargetType="Border">
+            <Setter Property="Background" Value="#2A3441"/>
+            <Setter Property="BorderBrush" Value="#3E4D61"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="8,3"/>
+            <Setter Property="Margin" Value="2,2"/>
+        </Style>
+
+        <Style x:Key="HeaderActionButton" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Foreground" Value="#99FFFFFF"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Padding" Value="6,2"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                CornerRadius="4"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Foreground" Value="#FFFFFFFF"/>
+                    <Setter Property="Background" Value="#22FFFFFF"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="StepText" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#E0E6ED"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="LineHeight" Value="16"/>
+        </Style>
+    </Window.Resources>
+
+    <!-- Outer Card: Frosted Glass / Dark OLED Acrylic with shadow -->
+    <Border CornerRadius="12"
+            Background="#E60D1117"
+            BorderBrush="#30363D"
+            BorderThickness="1"
+            Margin="8">
+        <Border.Effect>
+            <DropShadowEffect Color="#000000" BlurRadius="24" ShadowDepth="6" Direction="270" Opacity="0.8"/>
+        </Border.Effect>
+
+        <StackPanel>
+
+            <!-- ── Top Header / Drag Handle ──────────────────────────── -->
+            <Border x:Name="DragHandle"
+                    Background="#161B22"
+                    CornerRadius="11,11,0,0"
+                    Height="32"
+                    Padding="10,0"
+                    Cursor="SizeAll"
+                    MouseLeftButtonDown="DragHandle_MouseLeftButtonDown">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Left: Status & Shield badge -->
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Grid.Column="0">
+                        <Ellipse Width="8" Height="8" VerticalAlignment="Center" Margin="0,0,6,0">
+                            <Ellipse.Fill>
+                                <Binding Path="IsConnected" Converter="{StaticResource BoolToColor}"/>
+                            </Ellipse.Fill>
+                        </Ellipse>
+                        <TextBlock Text="COPILOT" Foreground="#C9D1D9" FontSize="10" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,10,0"/>
+
+                        <!-- Anti-Capture (WDA) indicator -->
+                        <Border Background="#1C3829" BorderBrush="#238636" BorderThickness="1" CornerRadius="4" Padding="5,1">
+                            <TextBlock Text="🛡️ ANTI-CAPTURE (WDA)"
+                                       Foreground="#3FB950"
+                                       FontSize="9"
+                                       FontWeight="SemiBold"
+                                       ToolTip="Hidden from Zoom, Meet, OBS, Discord &amp; Screen Recordings via WDA_EXCLUDEFROMCAPTURE"/>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- Center Drag Bar -->
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Grid.Column="1">
+                        <Rectangle Width="24" Height="2" Fill="#30363D" RadiusX="1" RadiusY="1"/>
+                    </StackPanel>
+
+                    <!-- Right Controls -->
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Grid.Column="2">
+                        <Button x:Name="BtnClickThrough"
+                                Style="{StaticResource HeaderActionButton}"
+                                Content="📌 PIN"
+                                ToolTip="Toggle Click-Through Mode (Mouse clicks pass through to presentation)"
+                                Click="BtnClickThrough_Click"/>
+                        <Button x:Name="BtnCopy"
+                                Style="{StaticResource HeaderActionButton}"
+                                Content="📋 COPY"
+                                ToolTip="Copy suggestion to clipboard"
+                                Click="BtnCopy_Click"/>
+                        <Button x:Name="BtnSettings"
+                                Style="{StaticResource HeaderActionButton}"
+                                Content="⚙️"
+                                ToolTip="Settings (Server URI, Opacity, Audio Buffer)"
+                                Click="BtnSettings_Click"/>
+                        <Button x:Name="BtnHide"
+                                Style="{StaticResource HeaderActionButton}"
+                                Content="✕"
+                                ToolTip="Hide HUD (Press Esc or Hotkey to toggle)"
+                                Click="BtnHide_Click"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- ── Main Content Area ─────────────────────────────────── -->
+            <StackPanel Margin="14,10,14,14">
+
+                <!-- Question / Transcribed Speech Preview -->
+                <Border Background="#161B22"
+                        BorderBrush="#21262D"
+                        BorderThickness="1"
+                        CornerRadius="6"
+                        Padding="10,6"
+                        Margin="0,0,0,10"
+                        Visibility="{Binding HasQuestion, Converter={StaticResource BoolToVis}}">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="👂 Q: " Foreground="#8B949E" FontSize="11" FontWeight="Bold" Grid.Column="0"/>
+                        <TextBlock Text="{Binding QuestionText}"
+                                   Foreground="#C9D1D9"
+                                   FontSize="11"
+                                   TextWrapping="Wrap"
+                                   FontStyle="Italic"
+                                   Grid.Column="1"/>
+                    </Grid>
+                </Border>
+
+                <!-- Core Key Point Card -->
+                <Border Background="#1E2633"
+                        BorderBrush="#2B3A4F"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="12,10"
+                        Margin="0,0,0,10">
+                    <StackPanel>
+                        <TextBlock Text="KEY POINT" Foreground="#58A6FF" FontSize="9" FontWeight="Bold" Margin="0,0,0,4"/>
+                        <TextBlock Text="{Binding KeyPoint}"
+                                   Foreground="#F0F6FC"
+                                   FontSize="14"
+                                   FontWeight="SemiBold"
+                                   TextWrapping="Wrap"
+                                   LineHeight="20"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Keywords -->
+                <StackPanel Margin="0,0,0,10">
+                    <TextBlock Text="KEY TALKING POINTS" Foreground="#8B949E" FontSize="9" FontWeight="Bold" Margin="0,0,0,4"/>
+                    <ItemsControl ItemsSource="{Binding KeywordsCollection}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Style="{StaticResource KeywordChip}">
+                                    <TextBlock Text="{Binding}" Foreground="#79C0FF" FontSize="11" FontWeight="Medium"/>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+
+                <!-- Framework Steps -->
+                <StackPanel Visibility="{Binding HasSteps, Converter={StaticResource BoolToVis}}" Margin="0,0,0,8">
+                    <TextBlock Text="ANSWER FRAMEWORK" Foreground="#8B949E" FontSize="9" FontWeight="Bold" Margin="0,0,0,6"/>
+                    <ItemsControl ItemsSource="{Binding NumberedSteps}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Margin="0,3,0,3">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="22"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Border Width="16" Height="16" CornerRadius="8"
+                                            Background="#1F3A5A" Grid.Column="0"
+                                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="0,1,0,0">
+                                        <TextBlock Text="{Binding Index}"
+                                                   Foreground="#58A6FF"
+                                                   FontSize="9" FontWeight="Bold"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center"/>
+                                    </Border>
+                                    <TextBlock Text="{Binding Text}"
+                                               Style="{StaticResource StepText}"
+                                               Grid.Column="1"/>
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+
+                <!-- Footer Shortcut Help -->
+                <Separator Background="#21262D" Margin="0,4,0,6"/>
+                <Grid>
+                    <TextBlock Text="{Binding StatusMessage}" Foreground="#8B949E" FontSize="10" HorizontalAlignment="Left"/>
+                    <TextBlock Text="Ctrl+Shift+Space to Analyze | Esc to Hide" Foreground="#484F58" FontSize="9" HorizontalAlignment="Right"/>
+                </Grid>
+
+            </StackPanel>
+        </StackPanel>
+    </Border>
+</Window>

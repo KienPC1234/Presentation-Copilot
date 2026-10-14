@@ -1,0 +1,70 @@
+# ==========================================
+# C# / .NET / Visual Studio
+# ==========================================
+bin/
+obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+.vs/
+[Dd]ebug/
+[Rr]elease/
+TestResults/
+*.DotSettings.user
+*.nupkg
+
+# ==========================================
+# Python / FastAPI / Virtual Environments
+# ==========================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+env.bak/
+venv.bak/
+.pytest_cache/
+.coverage
+htmlcov/
+dist/
+build/
+*.egg-info/
+
+# ==========================================
+# Application Data & ChromaDB
+# ==========================================
+server/data/chroma/*
+!server/data/chroma/.gitkeep
+server/data/docs/*
+!server/data/docs/.gitkeep
+*.wav
+*.mp3
+*.pcm
+*.log
+
+# ==========================================
+# Environment Variables & Secrets
+# ==========================================
+.env
+server/.env
+*.local
+
+# ==========================================
+# IDE & Operating System
+# ==========================================
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+
