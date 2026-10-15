@@ -1,6 +1,6 @@
 # Presentation Copilot
 
-Real-time meeting and technical defense assistant. Captures system loopback audio, transcribes speaker queries using faster-whisper, retrieves relevant project context via ChromaDB vector store, and streams structured answer outlines to an overlay HUD that remains invisible during screen sharing.
+Meeting and technical defense assistant. Captures system loopback audio, transcribes speaker queries using faster-whisper, retrieves relevant project context via ChromaDB vector store, and sends a transcript followed by a structured answer outline to an overlay HUD. Windows display affinity requests exclusion from compatible capture methods; verify behavior with the screen sharing software you use.
 
 ## System Architecture
 
@@ -40,7 +40,7 @@ ollama pull qwen2.5:7b
 ollama pull nomic-embed-text
 
 # Run server
-uvicorn main:app --host 0.0.0.0 --port 8765 --reload
+uvicorn main:app --host 127.0.0.1 --port 8765 --reload
 ```
 
 ### 2. Client Setup (C# / .NET 8)

@@ -6,11 +6,13 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "8765:8765"
+      - "127.0.0.1:8765:8765"
     volumes:
       - ./data:/app/data
     env_file:
       - .env
+    environment:
+      API_TOKEN: ${API_TOKEN:?Set API_TOKEN in server/.env for Docker access}
     depends_on:
       - ollama
     restart: unless-stopped
@@ -18,7 +20,7 @@ services:
   ollama:
     image: ollama/ollama:latest
     ports:
-      - "11434:11434"
+      - "127.0.0.1:11434:11434"
     volumes:
       - ollama_data:/root/.ollama
     restart: unless-stopped

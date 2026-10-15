@@ -6,6 +6,26 @@
     <title>Presentation Copilot Server | Control Center</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
+        async function apiFetch(url, options = {}) {
+            const send = token => fetch(url, {
+                ...options,
+                headers: { ...(options.headers || {}), ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+            });
+            let token = sessionStorage.getItem('copilotApiToken') || '';
+            let response = await send(token);
+            if (response.status === 401) {
+                token = prompt('Enter the Presentation Copilot API token:') || '';
+                if (!token) throw new Error('API token required');
+                sessionStorage.setItem('copilotApiToken', token);
+                response = await send(token);
+            }
+            return response;
+        }
+
+        function escapeHtml(value) {
+            return String(value).replace(/[&<>"']/g, c => ({'&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'}[c]));
+        }
+
         tailwind.config = {
             darkMode: 'class',
             theme: {
@@ -332,7 +352,7 @@
 
         async function refreshStats() {
             try {
-                const res = await fetch('/api/stats');
+                const res = await apiFetch('/api/stats');
                 const data = await res.json();
                 document.getElementById('statTotalChunks').innerText = data.total_chunks || 0;
                 document.getElementById('statFilesCount').innerText = data.indexed_files_count || 0;
@@ -350,7 +370,7 @@
             resBox.innerHTML = '<span class="text-gray-400">Scanning path...</span>';
 
             try {
-                const res = await fetch('/api/verify-path', {
+                const res = await apiFetch('/api/verify-path', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ path })
@@ -359,14 +379,14 @@
                 if (data.valid) {
                     resBox.innerHTML = `
                         <div class="text-emerald-400 font-bold">✓ Path Verified: Readable (${data.total_files} candidate files detected)</div>
-                        <div class="text-gray-400 text-[11px] mt-1">Resolved: ${data.resolved_path}</div>
-                        <div class="text-gray-500 text-[11px] mt-1">Samples: ${data.sample_files.join(', ') || 'None'}</div>
+                        <div class="text-gray-400 text-[11px] mt-1">Resolved: ${escapeHtml(data.resolved_path)}</div>
+                        <div class="text-gray-500 text-[11px] mt-1">Samples: ${escapeHtml(data.sample_files.join(', ') || 'None')}</div>
                     `;
                 } else {
-                    resBox.innerHTML = `<div class="text-red-400 font-bold">✗ ${data.error}</div>`;
+                    resBox.innerHTML = `<div class="text-red-400 font-bold">✗ ${escapeHtml(data.error)}</div>`;
                 }
             } catch (err) {
-                resBox.innerHTML = `<div class="text-red-400 font-bold">Error: ${err.message}</div>`;
+                resBox.innerHTML = `<div class="text-red-400 font-bold">Error: ${escapeHtml(err.message)}</div>`;
             }
         }
 
@@ -379,7 +399,7 @@
             statusEl.innerHTML = '<span class="text-amber-400">⏳ Ingesting & embedding chunks into ChromaDB...</span>';
 
             try {
-                const res = await fetch('/api/ingest', {
+                const res = await apiFetch('/api/ingest', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ path })
@@ -389,10 +409,10 @@
                     statusEl.innerHTML = `<span class="text-emerald-400 font-bold">✓ Successfully ingested ${data.chunks_ingested} chunks from ${data.files_indexed} files!</span>`;
                     refreshStats();
                 } else {
-                    statusEl.innerHTML = `<span class="text-red-400">Failed: ${data.error || 'Unknown error'}</span>`;
+                    statusEl.innerHTML = `<span class="text-red-400">Failed: ${escapeHtml(data.error || 'Unknown error')}</span>`;
                 }
             } catch (err) {
-                statusEl.innerHTML = `<span class="text-red-400">Error: ${err.message}</span>`;
+                statusEl.innerHTML = `<span class="text-red-400">Error: ${escapeHtml(err.message)}</span>`;
             } finally {
                 btn.disabled = false;
             }
@@ -401,7 +421,7 @@
         async function clearVectors() {
             if (!confirm("Are you sure you want to clear the vector database?")) return;
             try {
-                await fetch('/api/clear-vectors', { method: 'POST' });
+                await apiFetch('/api/clear-vectors', { method: 'POST' });
                 refreshStats();
                 alert("Vector database cleared.");
             } catch (err) {
@@ -411,7 +431,7 @@
 
         async function loadPersona() {
             try {
-                const res = await fetch('/api/persona');
+                const res = await apiFetch('/api/persona');
                 const data = await res.json();
                 document.getElementById('personaPreset').value = data.current_key;
                 document.getElementById('personaPrompt').value = data.active_prompt;
@@ -425,7 +445,7 @@
             if (key === 'custom') {
                 document.getElementById('personaPrompt').value = "Custom role: Enter instructions here...";
             } else {
-                fetch('/api/persona')
+                apiFetch('/api/persona')
                     .then(r => r.json())
                     .then(data => {
                         // Just trigger preview
@@ -439,7 +459,7 @@
             const status = document.getElementById('personaStatus');
 
             try {
-                const res = await fetch('/api/persona', {
+                const res = await apiFetch('/api/persona', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ key, custom_text: text })
@@ -464,7 +484,7 @@
             outBox.classList.remove('hidden');
 
             try {
-                const res = await fetch('/api/simulate', {
+                const res = await apiFetch('/api/simulate', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ question: q })
@@ -475,11 +495,11 @@
 
                 const kwContainer = document.getElementById('simKeywords');
                 kwContainer.innerHTML = (data.keywords || []).map(k =>
-                    `<span class="px-2.5 py-1 bg-gray-800 border border-bordercolor rounded-md text-blue-400 text-xs">${k}</span>`
+                    `<span class="px-2.5 py-1 bg-gray-800 border border-bordercolor rounded-md text-blue-400 text-xs">${escapeHtml(k)}</span>`
                 ).join('') || '<span class="text-gray-500 text-xs">None</span>';
 
                 const stepsContainer = document.getElementById('simSteps');
-                stepsContainer.innerHTML = (data.framework_steps || []).map(s => `<li>${s}</li>`).join('') || '<li class="text-gray-500">None</li>';
+                stepsContainer.innerHTML = (data.framework_steps || []).map(s => `<li>${escapeHtml(s)}</li>`).join('') || '<li class="text-gray-500">None</li>';
 
                 const chunksContainer = document.getElementById('simChunks');
                 chunksContainer.innerText = (data.retrieved_chunks || []).join('\n---\n') || 'No context retrieved.';
@@ -493,7 +513,7 @@
 
         async function loadEngineConfig() {
             try {
-                const res = await fetch('/api/config');
+                const res = await apiFetch('/api/config');
                 const data = await res.json();
                 if (data.whisper) {
                     document.getElementById('whisperLang').value = data.whisper.language || 'vi';
@@ -514,7 +534,7 @@
             const status = document.getElementById('cfgStatus');
 
             try {
-                const res = await fetch('/api/config', {
+                const res = await apiFetch('/api/config', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ whisper_language: lang, whisper_initial_prompt: prompt })

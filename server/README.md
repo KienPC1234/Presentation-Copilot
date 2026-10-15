@@ -76,14 +76,14 @@ python ingest.py
 python ingest.py --docs-dir /path/to/custom/docs
 ```
 
-This embeds all documents into ChromaDB at `./data/chroma/`. Re-run whenever you add new files.
+This embeds all documents into ChromaDB at `./data/chroma/`. Re-run whenever you add or change files. Existing chunks for each re-indexed file are replaced; the response includes related source names and PDF page numbers where available.
 
 ---
 
 ## Run the Server
 
 ```bash
-uvicorn main:app --host 0.0.0.0 --port 8765
+uvicorn main:app --host 127.0.0.1 --port 8765
 ```
 
 The server exposes:
@@ -92,13 +92,19 @@ The server exposes:
 |---|---|---|
 | `/ws` | WebSocket | Main audio + control channel |
 | `/health` | GET | Liveness check |
-| `/ingest` | POST | Trigger re-ingestion of `DOCS_DIR` |
+| `/api/ingest` | POST | Trigger re-ingestion of a chosen path |
+
+By default, API and WebSocket access is limited to the local machine. For access from another machine, set a long random `API_TOKEN` in `server/.env`, start Uvicorn on an explicitly chosen network interface, and set `PRESENTATION_COPILOT_API_TOKEN` to the same value in the Windows client's environment. Use TLS (`wss://`) across untrusted networks. The dashboard prompts for the bearer token when required and holds it in browser session storage. Browser requests with a different Origin are rejected.
+
+Audio is capped at `MAX_AUDIO_SECONDS` (default 90). The client stores editable settings in `%LOCALAPPDATA%/PresentationCopilot/appsettings.json` and loads them over the bundled defaults.
 
 ---
 
 ## Docker
 
 ### Build and run with Docker Compose
+
+Set `API_TOKEN` to a long random value in `server/.env` before starting Docker. Docker Compose requires it because connections forwarded into the container do not appear as loopback clients. Give the Windows client the same value in `PRESENTATION_COPILOT_API_TOKEN`.
 
 ```bash
 docker compose up --build
@@ -132,15 +138,16 @@ Send raw **16-bit signed, mono, little-endian PCM** bytes at the configured samp
 
 | Message | Description |
 |---|---|
-| `{"type": "trigger"}` | Flush buffer, run STT → RAG → LLM pipeline, return suggestion |
+| `{"type": "trigger", "request_id": "unique-id"}` | Flush buffer, run STT → RAG → LLM pipeline, return suggestion |
 | `{"type": "clear"}` | Discard the current audio buffer without processing |
 
 ### Server → client JSON responses
 
 | `type` | Additional fields | Description |
 |---|---|---|
-| `"processing"` | — | Sent immediately after trigger, before pipeline runs |
-| `"suggestion"` | `transcript`, `key_point`, `keywords`, `framework_steps` | Full pipeline result |
+| `"processing"` | `request_id` | Sent immediately after trigger |
+| `"transcript"` | `request_id`, `transcript`, `stt_ms` | Sent after STT, before agent completion |
+| `"suggestion"` | `request_id`, `transcript`, `key_point`, `keywords`, `framework_steps`, `retrieved_sources`, `timings_ms` | Full pipeline result |
 | `"error"` | `message` | Error detail |
 | `"ping"` | — | Heartbeat every 30 s |
 | `"cleared"` | — | Acknowledgement of `clear` request |
@@ -150,6 +157,7 @@ Send raw **16-bit signed, mono, little-endian PCM** bytes at the configured samp
 ```json
 {
   "type": "suggestion",
+  "request_id": "example-123",
   "transcript": "How does our authentication system handle token refresh?",
   "key_point": "The system uses short-lived JWTs with a sliding-window refresh strategy.",
   "keywords": ["JWT", "token refresh", "sliding window", "authentication", "security"],
@@ -157,7 +165,9 @@ Send raw **16-bit signed, mono, little-endian PCM** bytes at the configured samp
     "Explain the 15-minute access token lifetime",
     "Describe the refresh token rotation policy",
     "Highlight the revocation endpoint for logout"
-  ]
+  ],
+  "retrieved_sources": ["[architecture.md]"],
+  "timings_ms": {"stt": 650, "agent": 2200, "total": 2850}
 }
 ```
 

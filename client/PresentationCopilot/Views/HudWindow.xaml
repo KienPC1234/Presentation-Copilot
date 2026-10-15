@@ -202,6 +202,11 @@
                 </StackPanel>
 
                 <!-- Framework Steps -->
+                <TextBlock Text="{Binding RetrievedSources, StringFormat=Related sources: {0}}"
+                           Foreground="#8B949E" FontSize="10" TextWrapping="Wrap"
+                           Margin="0,0,0,8"/>
+
+                <!-- Framework Steps -->
                 <StackPanel Visibility="{Binding HasSteps, Converter={StaticResource BoolToVis}}" Margin="0,0,0,8">
                     <TextBlock Text="ANSWER FRAMEWORK" Foreground="#8B949E" FontSize="9" FontWeight="Bold" Margin="0,0,0,6"/>
                     <ItemsControl ItemsSource="{Binding NumberedSteps}">

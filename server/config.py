@@ -24,8 +24,10 @@ class Settings(BaseSettings):
     docs_dir: str = "./data/docs"
 
     # Server
-    host: str = "0.0.0.0"
+    host: str = "127.0.0.1"
     port: int = 8765
+    api_token: str = ""
+    max_audio_seconds: int = 90
 
     # Audio
     audio_sample_rate: int = 16000

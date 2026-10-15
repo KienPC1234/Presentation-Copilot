@@ -6,12 +6,13 @@ namespace PresentationCopilot.Services;
 /// <summary>
 /// Captures system audio via WASAPI loopback and resamples to 16kHz mono 16-bit PCM.
 /// Employs a low-latency ring buffer of the last N seconds of audio.
-/// Optimized with a zero-allocation fast-path converter for standard IEEE Float stereo formats.
+/// Uses the Windows Media Foundation resampler with anti-alias filtering.
 /// </summary>
 public sealed class AudioCaptureService : IDisposable
 {
     private WasapiLoopbackCapture? _capture;
     private readonly object _bufferLock = new();
+    private readonly object _converterLock = new();
 
     // Circular ring buffer
     private byte[] _ringBuffer = [];
@@ -32,42 +33,61 @@ public sealed class AudioCaptureService : IDisposable
 
     public void Initialize(int bufferSeconds)
     {
-        BufferSeconds = bufferSeconds;
-        int bufferSize = _targetFormat.AverageBytesPerSecond * bufferSeconds;
-        _ringBuffer = new byte[bufferSize];
-        _writePos = 0;
-        _bytesWritten = 0;
+        lock (_bufferLock)
+        {
+            BufferSeconds = Math.Clamp(bufferSeconds, 5, 90);
+            int bufferSize = _targetFormat.AverageBytesPerSecond * BufferSeconds;
+            _ringBuffer = new byte[bufferSize];
+            _writePos = 0;
+            _bytesWritten = 0;
+        }
     }
 
     public void Start()
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-
-        _capture = new WasapiLoopbackCapture();
-        var srcFormat = _capture.WaveFormat;
-
-        // If not matching fast-path format, initialize persistent resampler once
-        if (!IsFastPathSupported(srcFormat))
+        lock (_converterLock)
         {
-            _fallbackWaveProvider = new BufferedWaveProvider(srcFormat)
-            {
-                DiscardOnBufferOverflow = true,
-                BufferLength = srcFormat.AverageBytesPerSecond * 2
-            };
-            _fallbackResampler = new MediaFoundationResampler(_fallbackWaveProvider, _targetFormat)
-            {
-                ResamplerQuality = 60
-            };
-        }
+            if (_capture is not null) return;
+            _capture = new WasapiLoopbackCapture();
+            var srcFormat = _capture.WaveFormat;
 
-        _capture.DataAvailable += OnRawDataAvailable;
-        _capture.RecordingStopped += OnRecordingStopped;
-        _capture.StartRecording();
+            if (!IsTargetPcm(srcFormat))
+            {
+                _fallbackWaveProvider = new BufferedWaveProvider(srcFormat)
+                {
+                    ReadFully = false,
+                    DiscardOnBufferOverflow = true,
+                    BufferLength = srcFormat.AverageBytesPerSecond * 2
+                };
+                _fallbackResampler = new MediaFoundationResampler(_fallbackWaveProvider, _targetFormat)
+                {
+                    ResamplerQuality = 60
+                };
+            }
+
+            _capture.DataAvailable += OnRawDataAvailable;
+            _capture.RecordingStopped += OnRecordingStopped;
+            _capture.StartRecording();
+        }
     }
 
     public void Stop()
     {
-        _capture?.StopRecording();
+        lock (_converterLock)
+        {
+            if (_capture is not null)
+            {
+                _capture.DataAvailable -= OnRawDataAvailable;
+                _capture.RecordingStopped -= OnRecordingStopped;
+                try { _capture.StopRecording(); } catch { }
+                _capture.Dispose();
+                _capture = null;
+            }
+            _fallbackResampler?.Dispose();
+            _fallbackResampler = null;
+            _fallbackWaveProvider = null;
+        }
     }
 
     /// <summary>
@@ -97,7 +117,12 @@ public sealed class AudioCaptureService : IDisposable
     {
         if (e.BytesRecorded == 0 || _capture == null) return;
 
-        byte[] pcm = ConvertTo16kMonoPcm(e.Buffer, e.BytesRecorded, _capture.WaveFormat);
+        byte[] pcm;
+        lock (_converterLock)
+        {
+            if (_capture is null) return;
+            pcm = ConvertTo16kMonoPcm(e.Buffer, e.BytesRecorded, _capture.WaveFormat);
+        }
         if (pcm.Length == 0) return;
 
         lock (_bufferLock)
@@ -108,85 +133,19 @@ public sealed class AudioCaptureService : IDisposable
         DataAvailable?.Invoke(this, pcm);
     }
 
-    private static bool IsFastPathSupported(WaveFormat fmt)
+    private static bool IsTargetPcm(WaveFormat fmt)
     {
-        // Windows WASAPI Loopback default is 32-bit IEEE float, 2 channels, 48000Hz or 44100Hz
-        return fmt.Encoding == WaveFormatEncoding.IeeeFloat &&
-               fmt.BitsPerSample == 32 &&
-               (fmt.Channels == 2 || fmt.Channels == 1) &&
-               (fmt.SampleRate == 48000 || fmt.SampleRate == 16000);
+        return fmt.Encoding == WaveFormatEncoding.Pcm && fmt.BitsPerSample == 16 &&
+               fmt.Channels == 1 && fmt.SampleRate == 16000;
     }
 
     /// <summary>
     /// Converts input audio buffer to 16kHz 16-bit mono PCM.
-    /// Fast path handles 48kHz / 16kHz float with high speed and zero COM allocations.
+    /// Media Foundation handles band-limited conversion for WASAPI float and PCM formats.
     /// </summary>
     private byte[] ConvertTo16kMonoPcm(byte[] raw, int length, WaveFormat sourceFormat)
     {
-        // Fast-path: 48kHz Stereo Float -> 16kHz Mono 16-bit PCM (Step 3:1)
-        if (sourceFormat.Encoding == WaveFormatEncoding.IeeeFloat &&
-            sourceFormat.BitsPerSample == 32 &&
-            sourceFormat.SampleRate == 48000 &&
-            sourceFormat.Channels == 2)
-        {
-            int totalInputFrames = length / 8; // 4 bytes per float * 2 channels = 8 bytes/frame
-            int outputSampleCount = totalInputFrames / 3;
-            byte[] output = new byte[outputSampleCount * 2]; // 16-bit = 2 bytes/sample
-
-            unsafe
-            {
-                fixed (byte* pRaw = raw)
-                fixed (byte* pOut = output)
-                {
-                    float* inSamples = (float*)pRaw;
-                    short* outSamples = (short*)pOut;
-
-                    for (int i = 0; i < outputSampleCount; i++)
-                    {
-                        int srcIdx = (i * 3) * 2; // Step 3 frames, stereo has 2 floats
-                        float left = inSamples[srcIdx];
-                        float right = inSamples[srcIdx + 1];
-                        float mono = (left + right) * 0.5f;
-
-                        // Clamp and convert to short (16-bit PCM)
-                        if (mono > 1.0f) mono = 1.0f;
-                        else if (mono < -1.0f) mono = -1.0f;
-
-                        outSamples[i] = (short)(mono * 32767.0f);
-                    }
-                }
-            }
-            return output;
-        }
-
-        // Fast-path: 16kHz Stereo Float -> 16kHz Mono 16-bit PCM
-        if (sourceFormat.Encoding == WaveFormatEncoding.IeeeFloat &&
-            sourceFormat.BitsPerSample == 32 &&
-            sourceFormat.SampleRate == 16000 &&
-            sourceFormat.Channels == 2)
-        {
-            int outputSampleCount = length / 8;
-            byte[] output = new byte[outputSampleCount * 2];
-
-            unsafe
-            {
-                fixed (byte* pRaw = raw)
-                fixed (byte* pOut = output)
-                {
-                    float* inSamples = (float*)pRaw;
-                    short* outSamples = (short*)pOut;
-
-                    for (int i = 0; i < outputSampleCount; i++)
-                    {
-                        float mono = (inSamples[i * 2] + inSamples[i * 2 + 1]) * 0.5f;
-                        if (mono > 1.0f) mono = 1.0f;
-                        else if (mono < -1.0f) mono = -1.0f;
-                        outSamples[i] = (short)(mono * 32767.0f);
-                    }
-                }
-            }
-            return output;
-        }
+        if (IsTargetPcm(sourceFormat)) return raw.AsSpan(0, length).ToArray();
 
         // Persistent fallback resampler
         if (_fallbackWaveProvider != null && _fallbackResampler != null)
@@ -238,17 +197,6 @@ public sealed class AudioCaptureService : IDisposable
         if (_disposed) return;
         _disposed = true;
 
-        if (_capture is not null)
-        {
-            _capture.DataAvailable -= OnRawDataAvailable;
-            _capture.RecordingStopped -= OnRecordingStopped;
-            try { _capture.StopRecording(); } catch { }
-            _capture.Dispose();
-            _capture = null;
-        }
-
-        _fallbackResampler?.Dispose();
-        _fallbackResampler = null;
-        _fallbackWaveProvider = null;
+        Stop();
     }
 }

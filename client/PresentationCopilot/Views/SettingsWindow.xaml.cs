@@ -59,16 +59,21 @@ public partial class SettingsWindow : Window
         _config.OpacityLevel = Math.Round(SliderOpacity.Value, 2);
         _config.AudioBufferSeconds = (int)SliderBuffer.Value;
 
-        // Persist to appsettings.json
+        // Persist per-user settings outside the installed application's directory.
         try
         {
-            var configPath = System.IO.Path.Combine(AppContext.BaseDirectory, "appsettings.json");
+            var configDir = System.IO.Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "PresentationCopilot");
+            System.IO.Directory.CreateDirectory(configDir);
+            var configPath = System.IO.Path.Combine(configDir, "appsettings.json");
             var json = System.Text.Json.JsonSerializer.Serialize(_config, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
             System.IO.File.WriteAllText(configPath, json);
         }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"[SettingsWindow] Error saving config: {ex.Message}");
+            System.Windows.MessageBox.Show(ex.Message, "Could not save settings", MessageBoxButton.OK, MessageBoxImage.Error);
+            return;
         }
 
         SettingsSaved?.Invoke(this, _config);

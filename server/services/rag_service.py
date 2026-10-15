@@ -1,5 +1,6 @@
 import logging
 import os
+import hashlib
 from pathlib import Path
 from typing import Any, List
 
@@ -53,6 +54,10 @@ class RAGService:
                 persist_directory=self._persist_dir,
             )
             count = self._vectorstore._collection.count()
+            self._indexed_files = {metadata.get("source_path", "") for metadata in
+                                   self._vectorstore._collection.get(include=["metadatas"])["metadatas"]
+                                   if metadata}
+            self._indexed_files.discard("")
             logger.info("Loaded ChromaDB collection '%s' with %d chunks", _COLLECTION_NAME, count)
         except Exception:
             logger.warning("Could not load ChromaDB store, will create on first ingest")
@@ -141,18 +146,35 @@ class RAGService:
         )
         chunks = splitter.split_documents(raw_docs)
         logger.info("Split %d documents into %d chunks", len(raw_docs), len(chunks))
+        if self._vectorstore is None:
+            self._load_existing_store()
+        if self._vectorstore is None:
+            raise RuntimeError("Chroma collection is unavailable")
 
-        self._vectorstore = Chroma.from_documents(
-            documents=chunks,
-            embedding=self._embeddings,
-            collection_name=_COLLECTION_NAME,
-            persist_directory=self._persist_dir,
-        )
-        self._indexed_files = indexed_files
+        # Replace each indexed file instead of appending duplicate chunks on every run.
+        # Stable IDs allow Chroma to keep unchanged chunks across repeated ingestion.
+        ids: list[str] = []
+        for chunk in chunks:
+            source = chunk.metadata["source_path"]
+            page = chunk.metadata.get("page", 0)
+            content_hash = hashlib.sha256(chunk.page_content.encode("utf-8")).hexdigest()
+            chunk.metadata["citation"] = f"{chunk.metadata['source_name']}:{int(page) + 1}" if "page" in chunk.metadata else chunk.metadata["source_name"]
+            ids.append(hashlib.sha256(f"{source}:{page}:{content_hash}".encode("utf-8")).hexdigest())
+
+        existing = self._vectorstore._collection.get(include=["metadatas"])
+        old_ids = [doc_id for doc_id, metadata in zip(existing["ids"], existing["metadatas"])
+                   if metadata and metadata.get("source_path") in indexed_files]
+        # Duplicate content within a file is represented once per source and page.
+        unique = {doc_id: chunk for doc_id, chunk in zip(ids, chunks)}
+        self._vectorstore.add_documents(list(unique.values()), ids=list(unique))
+        stale_ids = list(set(old_ids) - set(unique))
+        if stale_ids:
+            self._vectorstore._collection.delete(ids=stale_ids)
+        self._indexed_files.update(indexed_files)
 
         return {
             "status": "success",
-            "chunks_ingested": len(chunks),
+            "chunks_ingested": len(unique),
             "files_indexed": len(indexed_files),
             "target_path": target_path
         }
@@ -189,16 +211,16 @@ class RAGService:
     def query(self, question: str, top_k: int = 4) -> List[str]:
         """Retrieve the top-k relevant document chunks for question."""
         if self._vectorstore is None:
-            return []
+            raise RuntimeError("Retrieval store unavailable")
 
         try:
             results = self._vectorstore.similarity_search(question, k=top_k)
             chunks = []
             for doc in results:
-                src = doc.metadata.get("source_name", "")
-                header = f"[{src}] " if src else ""
+                citation = doc.metadata.get("citation", doc.metadata.get("source_name", ""))
+                header = f"[{citation}] " if citation else ""
                 chunks.append(f"{header}{doc.page_content}")
             return chunks
         except Exception:
             logger.exception("RAG query failed")
-            return []
+            raise RuntimeError("Document retrieval failed") from None

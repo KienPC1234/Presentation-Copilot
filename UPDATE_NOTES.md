@@ -1,0 +1,33 @@
+# Cập nhật: bảo mật, độ ổn định và kiểm tra logic AI
+
+## Thay đổi hành vi
+
+- API/WebSocket mặc định chỉ nhận kết nối cục bộ; hỗ trợ bearer token, kiểm tra Origin/Host và giới hạn buffer âm thanh. Docker yêu cầu API_TOKEN.
+- Loại công cụ shell khỏi agent; giới hạn biểu thức calculator và escape dữ liệu động trên dashboard.
+- Client dùng request_id để ghép phản hồi, giữ trạng thái bận đến khi nhận kết quả, xử lý heartbeat riêng và có thời hạn chờ.
+- Server gửi transcript trước kết quả AI, kèm số đo thời gian xử lý.
+- Chuyển đổi âm thanh bằng Media Foundation để có lọc chống aliasing; sửa vòng đời capture và resampler.
+- Lưu cấu hình theo người dùng; áp dụng endpoint và thời lượng buffer sau khi lưu.
+- RAG dùng ID ổn định, cập nhật các chunk của tệp đã ingest và hiển thị nguồn liên quan/PDF page khi có.
+- Agent nhận evidence trước khi sinh câu trả lời. Nguồn trả về dựa trên evidence thực nhận, không truy xuất thêm sau câu trả lời để gán nguồn.
+- Parser dùng chung kiểm tra JSON và kiểu dữ liệu; từ chối đầu ra hỏng/hết vòng lặp, loại trường giao thức hoặc nguồn do model tự thêm.
+- Lỗi AI không được ghi vào lịch sử; lỗi STT/RAG không còn bị coi là không có dữ liệu. Sửa persona chứa ngoặc nhọn, kiểm tra persona và giới hạn lịch sử.
+
+## Thay đổi cần lưu ý khi chạy
+
+- Trigger WebSocket cần request_id: `{"type":"trigger","request_id":"unique-id"}`.
+- Khi dùng token, đặt API_TOKEN cho server và PRESENTATION_COPILOT_API_TOKEN cho Windows client. Dashboard hỏi token khi cần.
+- Docker Compose yêu cầu API_TOKEN trong server/.env; các port được publish trên loopback.
+- Cấu hình người dùng lưu tại `%LOCALAPPDATA%/PresentationCopilot/appsettings.json`.
+
+## Đã kiểm tra
+
+- Client .NET build thành công: 0 lỗi, 0 cảnh báo.
+- 13 kiểm thử logic đạt: 10 cho AI/context/orchestration, 3 cho chính sách truy cập.
+- Python compileall, kiểm tra cú pháp JavaScript dashboard và git diff --check đạt.
+
+## Giới hạn và công việc tiếp theo
+
+Chưa chạy tích hợp bằng mô hình Ollama/Whisper và Chroma thực. Các kiểm thử orchestration dùng provider giả; không phải đánh giá độ chính xác câu trả lời. Transcript sớm chưa phải streaming STT/token liên tục. Nguồn liên quan chưa chứng minh từng nhận định. Chưa có ngưỡng liên quan RAG, tự loại tệp đã xóa, hoặc đánh giá chất lượng bằng tập câu hỏi/âm thanh chuẩn.
+
+Xem AI_ENGINE_REVIEW.md cho phát hiện và ưu tiên; DEVELOPMENT.md cho các mốc tiếp theo; server/benchmark.py để đo trên máy có đủ môi trường AI.

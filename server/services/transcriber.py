@@ -30,8 +30,7 @@ class TranscriberService:
     def set_language(self, language: str, initial_prompt: str = "") -> None:
         """Dynamically configure language code (e.g. 'vi', 'en', 'auto') without reloading model."""
         self.language = None if language.lower() in ("auto", "", "none") else language.lower()
-        if initial_prompt:
-            self.initial_prompt = initial_prompt
+        self.initial_prompt = initial_prompt
         logger.info("Transcriber language set to '%s' (prompt: %.50s)", self.language or "auto", self.initial_prompt)
 
     def get_config(self) -> dict[str, str | None]:
@@ -68,4 +67,4 @@ class TranscriberService:
 
         except Exception:
             logger.exception("Transcription failed for %s", audio_path)
-            return ""
+            raise RuntimeError("Speech transcription failed") from None

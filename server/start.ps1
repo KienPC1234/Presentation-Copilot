@@ -9,8 +9,8 @@ Write-Host "   WebSocket     : ws://localhost:8765/ws                  " -Foregr
 Write-Host "============================================================" -ForegroundColor Cyan
 
 if (Test-Path $venvUvicorn) {
-    & $venvUvicorn main:app --host 0.0.0.0 --port 8765 --reload
+    & $venvUvicorn main:app --host 127.0.0.1 --port 8765 --reload
 } else {
-    uvicorn main:app --host 0.0.0.0 --port 8765 --reload
+    uvicorn main:app --host 127.0.0.1 --port 8765 --reload
 }
 
