@@ -11,11 +11,11 @@ import tempfile
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 
 from config import settings
 from security import authorized, same_origin
@@ -24,6 +24,7 @@ from services.audio_utils import normalize_audio, pcm_bytes_to_wav
 from services.context_manager import ContextRegistry, SessionContext
 from services.rag_service import RAGService
 from services.transcriber import TranscriberService
+from services.defense_service import DefenseService
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -185,6 +186,10 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
                 except json.JSONDecodeError:
                     continue
 
+                if not isinstance(ctrl, dict):
+                    await send_json({"type": "error", "message": "Control message must be a JSON object"})
+                    continue
+
                 msg_type = ctrl.get("type")
 
                 if msg_type == "trigger":
@@ -213,6 +218,15 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
                     pcm_buffer.clear()
                     _ctx_registry.get_or_create(session_id).clear_history()
                     await send_json({"type": "cleared"})
+                elif msg_type == "set_topic":
+                    topic = ctrl.get("topic")
+                    if not isinstance(topic, str) or not 3 <= len(topic.strip()) <= 200:
+                        await send_json({"type": "error", "message": "Topic must contain 3–200 characters"})
+                        continue
+                    ctx = _ctx_registry.get_or_create(session_id)
+                    ctx.clear_history()
+                    ctx.set_fact("presentation_topic", topic.strip())
+                    await send_json({"type": "topic_set", "topic": topic.strip()})
 
     except WebSocketDisconnect:
         logger.info("Client disconnected: %s", session_id)
@@ -243,6 +257,38 @@ class PersonaRequest(BaseModel):
 
 class SimulationRequest(BaseModel):
     question: str
+    topic: str = Field(default="", max_length=200)
+
+
+class DefenseRequest(BaseModel):
+    topic: str = Field(min_length=3, max_length=200)
+    focus: str = Field(default="", max_length=2000)
+    count: int = Field(default=6, ge=3, le=12)
+    language: Literal["vi", "en"] = "vi"
+
+    @field_validator("topic")
+    @classmethod
+    def nonblank_topic(cls, value):
+        value = value.strip()
+        if len(value) < 3:
+            raise ValueError("Topic must contain at least 3 non-whitespace characters")
+        return value
+
+
+@app.post("/api/defense/prepare")
+async def prepare_defense(req: DefenseRequest) -> JSONResponse:
+    if _rag is None:
+        raise HTTPException(status_code=503, detail="RAG service not ready")
+    try:
+        service = DefenseService(_rag)
+        result = await asyncio.to_thread(service.prepare, req.topic.strip(), req.focus, req.count, req.language)
+        return JSONResponse(result)
+    except ValueError as exc:
+        logger.warning("Invalid defense plan: %s", exc)
+        raise HTTPException(status_code=502, detail="AI returned an invalid preparation plan; please retry") from exc
+    except Exception as exc:
+        logger.exception("Defense preparation failed")
+        raise HTTPException(status_code=503, detail="Preparation service unavailable") from exc
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -328,7 +374,10 @@ async def simulate_query(req: SimulationRequest) -> JSONResponse:
         return JSONResponse(status_code=503, content={"error": "Services not ready"})
 
     temp_ctx = SessionContext("simulation_temp", max_turns=5)
-    chunks = _rag.query(req.question, top_k=3)
+    if req.topic.strip():
+        temp_ctx.set_fact("presentation_topic", req.topic.strip())
+    query = f"{req.topic.strip()}: {req.question}" if req.topic.strip() else req.question
+    chunks = await asyncio.to_thread(_rag.query, query, 3)
     loop = asyncio.get_event_loop()
     suggestion = await loop.run_in_executor(None, lambda: _agent.run(req.question, temp_ctx))
 

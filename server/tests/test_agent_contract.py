@@ -49,6 +49,13 @@ class AgentContractTests(unittest.TestCase):
         self.assertEqual(result["retrieved_sources"], ["[actual.md]"])
         self.assertEqual(len(self.ctx.get_history()), 2)
 
+    def test_rehearsal_topic_anchors_retrieval_without_replacing_question(self):
+        self.ctx.set_fact("presentation_topic", "My real product")
+        self.agent._executor.invoke.return_value = {"output": json.dumps({
+            "key_point": "Answer", "keywords": [], "framework_steps": []}), "intermediate_steps": []}
+        self.agent.run("How reliable is it?", self.ctx)
+        self.agent._rag.query.assert_called_once_with("My real product: How reliable is it?", top_k=4)
+
     def test_invalid_answer_not_remembered(self):
         self.agent._executor.invoke.return_value = {"output": "Agent stopped due to iteration limit."}
         with self.assertLogs(self.module.logger, level="ERROR"):

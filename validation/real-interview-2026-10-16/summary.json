@@ -1,0 +1,147 @@
+{
+  "project": "FPTEELiterature",
+  "project_source_snapshot": [
+    {
+      "file": "index.html",
+      "sha256": "7aac4090bbd08bd1dfb667a686d53c32cee24aff018561093fc77084c2ca9929",
+      "ranges": [
+        [
+          7,
+          7
+        ],
+        [
+          67,
+          67
+        ],
+        [
+          125,
+          125
+        ]
+      ]
+    },
+    {
+      "file": "api.php",
+      "sha256": "c55f21ef808759e1f27ced89f398fd99150c9fb44b4b2adcbab4485e86db6b9e",
+      "ranges": [
+        [
+          85,
+          104
+        ],
+        [
+          388,
+          425
+        ]
+      ]
+    }
+  ],
+  "evidence_sha256": "57e76e74853a5b818db75c54e20357f7a8954a7e61d9297d4b9cd40db3d9a253",
+  "question_origin": "Real published human interview about a different product context; transferred without TTS to FPTEELiterature rehearsal",
+  "audio_source": "https://appsgamesinsights.libsyn.com/building-quality-apps-with-firebase-episode-13",
+  "audio_sha256": "87d92c1fe5fdd63a2af06bb911be21487e7db61700c42168b34815472b24a396",
+  "model": "gpt-oss:120b-cloud",
+  "whisper": "base",
+  "preparation": {
+    "count": 6,
+    "categories": [
+      "product",
+      "technical",
+      "evidence",
+      "risks",
+      "alternatives",
+      "operations"
+    ],
+    "origin": "ai_generated_preparation",
+    "missing_evidence_count": 3
+  },
+  "clips": [
+    {
+      "id": "quality",
+      "range_seconds": [
+        203.33,
+        205.14
+      ],
+      "events": [
+        "processing",
+        "transcript",
+        "suggestion"
+      ],
+      "duration_seconds": 1.81,
+      "elapsed_seconds": 4.38,
+      "asr_word_count": 7,
+      "asr_sha256": "77c02543c73bc91acbb0686df0cfc4c862051848149dc03268d72daa1bfa8bfb",
+      "asr_keywords": {
+        "quality": true
+      },
+      "wer": 0.0,
+      "response_type": "suggestion",
+      "timings_ms": {
+        "stt": 1346,
+        "agent": 3028,
+        "total": 4374
+      }
+    },
+    {
+      "id": "priorities",
+      "range_seconds": [
+        392.26,
+        402.1
+      ],
+      "events": [
+        "processing",
+        "transcript",
+        "suggestion"
+      ],
+      "duration_seconds": 9.84,
+      "elapsed_seconds": 6.37,
+      "asr_word_count": 34,
+      "asr_sha256": "244894e923b926e3de92286de51e5bd7c14567648888eb161178d2f8bb55a476",
+      "asr_keywords": {
+        "bugs": true,
+        "feature": true,
+        "prioritize": true
+      },
+      "response_type": "suggestion",
+      "timings_ms": {
+        "stt": 1665,
+        "agent": 4702,
+        "total": 6367
+      }
+    },
+    {
+      "id": "growth",
+      "range_seconds": [
+        655.7,
+        661.3
+      ],
+      "events": [
+        "processing",
+        "transcript",
+        "suggestion"
+      ],
+      "duration_seconds": 5.6,
+      "elapsed_seconds": 5.54,
+      "asr_word_count": 24,
+      "asr_sha256": "f71acf380192f83b142ac2b7a176cb7c9f069531db3bf43b985032de6ec27a6f",
+      "asr_keywords": {
+        "pitfalls": true,
+        "grow": true,
+        "quality": true
+      },
+      "response_type": "suggestion",
+      "timings_ms": {
+        "stt": 1456,
+        "agent": 4083,
+        "total": 5539
+      }
+    }
+  ],
+  "testclient_only": true,
+  "unit_tests_passed": 46,
+  "full_transcripts_exported": false,
+  "limitations": [
+    "WER reference covers only the seven-word first question",
+    "Other clips have keyword checks, not complete reference transcripts",
+    "No Vietnamese audio or Windows network capture test",
+    "Citations and keyword matches are not semantic answer accuracy scores"
+  ]
+}

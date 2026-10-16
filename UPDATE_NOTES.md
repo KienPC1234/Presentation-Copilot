@@ -1,5 +1,9 @@
 # Cập nhật: bảo mật, độ ổn định và kiểm tra logic AI
 
+## Chuẩn bị phản biện và bài phỏng vấn ghi âm thật — 2026-10-16
+
+Thêm tab dashboard và API `/api/defense/prepare` cho bộ câu hỏi theo sáu nhóm, nguồn tham khảo và checklist chuẩn bị; phân biệt rõ câu AI tạo với câu hỏi lịch sử. WebSocket có `set_topic`, simulation nhận đề tài để neo ngữ cảnh. Thêm runner replay giọng người thật, manifest nguồn/hash/timestamp, metric WER chỉ khi có reference và bộ test schema/API/UI. Bài chạy dùng sản phẩm FPTEELiterature trên server cùng ba đoạn hỏi từ podcast chính thức Android Developers. Xem `DEFENSE_AND_REAL_INTERVIEW.md` cho dữ liệu, kết quả, hạn chế và cách chạy lại.
+
 ## Trả lời dễ hiểu cho người lớn — 2026-10-16
 
 Mặc định `RESPONSE_STYLE=plain`: nói ngắn, từ quen thuộc, giữ số liệu và mức chắc chắn; có `technical` để chọn cách nói chuyên môn. Thêm bước biên soạn cuối dựa trên evidence, kiểm tra ví dụ với tối đa một lần sửa và bộ lọc hẹp cho chỉ dẫn ghi đè prompt trong tài liệu. Đã chạy so sánh 10 câu trước/sau, nhóm câu mới và regression, cùng 30 kiểm thử logic trên server. Xem `PLAIN_LANGUAGE_EVALUATION.md` và dữ liệu gốc; có ghi cả lỗi còn lại, chi phí thời gian và giới hạn của phép đánh giá.

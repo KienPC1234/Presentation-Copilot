@@ -1,0 +1,45 @@
+{
+  "topic": "FPTEELiterature: multi-subject learning materials and practice exams for students, teachers and schools",
+  "recording_kind": "published_human_interview",
+  "original_topic": "Building quality apps with Firebase",
+  "source_page": "https://appsgamesinsights.libsyn.com/building-quality-apps-with-firebase-episode-13",
+  "source_audio_url": "https://traffic.libsyn.com/secure/appsgamesinsights/AGI015_-_V2_Edit.mp3?dest-id=1891691",
+  "source_transcript_url": "https://developer.android.com/static/podcasts/apps-games-insights/transcripts/building-quality-apps-with-firebase.pdf",
+  "audio_file": "source.mp3",
+  "evidence_file": "project-evidence.md",
+  "audio_sha256": "87d92c1fe5fdd63a2af06bb911be21487e7db61700c42168b34815472b24a396",
+  "clips": [
+    {
+      "id": "quality",
+      "start_seconds": 203.33,
+      "end_seconds": 205.14,
+      "question_summary_vi": "Ý nghĩa của chất lượng ứng dụng",
+      "reference_transcript": "What does app quality mean to you?",
+      "asr_keywords": [
+        "quality"
+      ]
+    },
+    {
+      "id": "priorities",
+      "start_seconds": 392.26,
+      "end_seconds": 402.1,
+      "question_summary_vi": "Ưu tiên sửa lỗi so với thêm tính năng",
+      "asr_keywords": [
+        "bugs",
+        "feature",
+        "prioritize"
+      ]
+    },
+    {
+      "id": "growth",
+      "start_seconds": 655.7,
+      "end_seconds": 661.3,
+      "question_summary_vi": "Rủi ro chất lượng khi tăng trưởng nhanh",
+      "asr_keywords": [
+        "pitfalls",
+        "grow",
+        "quality"
+      ]
+    }
+  ]
+}
