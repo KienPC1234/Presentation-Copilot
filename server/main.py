@@ -9,6 +9,7 @@ import os
 import re
 import tempfile
 import time
+from uuid import uuid4
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any, Literal
@@ -143,7 +144,9 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
         return
     await websocket.accept()
     client = websocket.client
-    session_id = f"{client.host}:{client.port}" if client else "unknown"
+    # Connection identity must not depend on reusable peer ports, proxy
+    # addresses or the identical addresses supplied by test transports.
+    session_id = uuid4().hex
     logger.info("Client connected: %s", session_id)
 
     pcm_buffer: bytearray = bytearray()
@@ -256,7 +259,7 @@ class PersonaRequest(BaseModel):
 
 
 class SimulationRequest(BaseModel):
-    question: str
+    question: str = Field(min_length=1, max_length=12000)
     topic: str = Field(default="", max_length=200)
 
 
@@ -376,20 +379,15 @@ async def simulate_query(req: SimulationRequest) -> JSONResponse:
     temp_ctx = SessionContext("simulation_temp", max_turns=5)
     if req.topic.strip():
         temp_ctx.set_fact("presentation_topic", req.topic.strip())
-    query = f"{req.topic.strip()}: {req.question}" if req.topic.strip() else req.question
-    chunks = await asyncio.to_thread(_rag.query, query, 3)
     loop = asyncio.get_event_loop()
-    suggestion = await loop.run_in_executor(None, lambda: _agent.run(req.question, temp_ctx))
+    suggestion = await loop.run_in_executor(None, lambda: _agent.run(req.question, temp_ctx, include_evidence=True))
 
-    return JSONResponse({
-        **suggestion,
-        "retrieved_chunks": chunks,
-    })
+    return JSONResponse(suggestion, status_code=502 if suggestion.get("error") else 200)
 
 
 class EngineConfigRequest(BaseModel):
-    whisper_language: str = "vi"
-    whisper_initial_prompt: str = ""
+    whisper_language: str = Field(default="vi", max_length=16)
+    whisper_initial_prompt: str = Field(default="", max_length=2000)
 
 
 @app.get("/api/config")
@@ -398,6 +396,8 @@ async def get_engine_config() -> JSONResponse:
     return JSONResponse({
         "whisper": whisper_cfg,
         "ollama_model": settings.ollama_model,
+        "ollama_answer_model": settings.ollama_answer_model or settings.ollama_model,
+        "ollama_review_model": settings.ollama_review_model or settings.ollama_answer_model or settings.ollama_model,
         "ollama_base_url": settings.ollama_base_url,
         "response_style": settings.response_style,
     })
@@ -406,6 +406,9 @@ async def get_engine_config() -> JSONResponse:
 @app.post("/api/config")
 async def update_engine_config(req: EngineConfigRequest) -> JSONResponse:
     if _transcriber:
-        _transcriber.set_language(req.whisper_language, req.whisper_initial_prompt)
+        try:
+            _transcriber.set_language(req.whisper_language, req.whisper_initial_prompt)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
     return JSONResponse({"status": "success", "config": _transcriber.get_config() if _transcriber else {}})
 

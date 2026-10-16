@@ -1,5 +1,14 @@
 # Cập nhật: bảo mật, độ ổn định và kiểm tra logic AI
 
+## Goal professional và vòng nghiệm thu — 2026-10-17
+
+- Goal đang hoạt động, chưa đánh dấu nghiệm thu. Tiêu chí: PROFESSIONAL_ACCEPTANCE.md; kết quả và giới hạn: PROFESSIONAL_VALIDATION.md.
+- Thêm rà soát có giới hạn một lần sửa, chặn câu vẫn lỗi và không lưu lịch sử; sửa client JSON Ollama để nhận final content, timeout và giới hạn đầu ra.
+- Sửa vòng đời RAG cho tệp xóa/rỗng, khóa đọc–ghi và marker sự cố qua khởi động lại. Tách ID kết nối, lưu các ý để hỏi tiếp và trả đúng evidence ở simulation.
+- 77 kiểm thử backend qua. Đo 12 audio người thật có lời chuẩn: WER base 46,86%, small 25,74%, medium 11,55%; medium thêm nhiễu 15 dB 14,52%. Mẫu chỉ có 5 câu khác nhau.
+- Chạy 8 phiên agent: tập phát triển 16/16 được engine cho qua, bộ giữ riêng 21/24. Đọc tay vẫn có lỗi gán hành vi sai API và thiếu ý kiểm thử; không gọi đây là độ chính xác.
+- Phát lại podcast tiếng Việt với medium hết 38,657 giây. Chưa nghiệm thu hội trường/nói chồng hoặc audio đồng thời qua mạng. Chỉ đẩy số liệu đã lược dữ liệu riêng.
+
 ## Chuẩn bị phản biện và bài phỏng vấn ghi âm thật — 2026-10-16
 
 Thêm tab dashboard và API `/api/defense/prepare` cho bộ câu hỏi theo sáu nhóm, nguồn tham khảo và checklist chuẩn bị; phân biệt rõ câu AI tạo với câu hỏi lịch sử. WebSocket có `set_topic`, simulation nhận đề tài để neo ngữ cảnh. Thêm runner replay giọng người thật, manifest nguồn/hash/timestamp, metric WER chỉ khi có reference và bộ test schema/API/UI. Bài chạy dùng sản phẩm FPTEELiterature trên server cùng ba đoạn hỏi từ podcast chính thức Android Developers. Xem `DEFENSE_AND_REAL_INTERVIEW.md` cho dữ liệu, kết quả, hạn chế và cách chạy lại.

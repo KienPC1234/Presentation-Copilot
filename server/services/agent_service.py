@@ -27,9 +27,11 @@ from langchain_ollama import ChatOllama
 from config import settings
 from services.output_validation import parse_suggestion
 from services.react_parser import StructuredReActParser
-from services.response_style import RESPONSE_STYLES
+from services.response_style import RESPONSE_STYLES, EXPERT_GROUNDING
 from services.evidence_filter import filter_evidence
 from services.response_quality import missing_requested_example
+from services.answer_review import review_answer
+from services.ollama_json import OllamaJSONClient
 
 if TYPE_CHECKING:
     from services.context_manager import SessionContext
@@ -186,11 +188,12 @@ class AgentService:
             base_url=settings.ollama_base_url,
             model=settings.ollama_model,
             temperature=0.2,
+            client_kwargs={"timeout": settings.llm_timeout_seconds},
+            num_predict=4096,
         )
-        self._plain_llm = ChatOllama(
-            base_url=settings.ollama_base_url, model=settings.ollama_model,
-            temperature=0, format="json",
-        )
+        answer_model = settings.ollama_answer_model or settings.ollama_model
+        self._plain_llm = OllamaJSONClient(model=answer_model)
+        self._review_llm = OllamaJSONClient(model=settings.ollama_review_model or answer_model)
         self._rebuild_executor()
         logger.info("AgentService ready with persona '%s'", self._current_persona_key)
 
@@ -236,10 +239,11 @@ class AgentService:
             "response_style": getattr(settings, "response_style", "plain"),
         }
 
-    def run(self, question: str, ctx: "SessionContext") -> dict[str, Any]:
+    def run(self, question: str, ctx: "SessionContext", *, include_evidence: bool = False) -> dict[str, Any]:
         """Runs the agent on a user query and records turns into SessionContext."""
         history_text = ctx.format_for_prompt()
         topic = ctx.get_fact("presentation_topic")
+        review_codes = []
 
         try:
             if not question.strip() or len(question) > 12000:
@@ -291,6 +295,8 @@ class AgentService:
                     HumanMessage(content=json.dumps({"question": question, "presentation_topic": topic, "history": history_text,
                         "evidence": observed, "tool_observations": tool_facts}, ensure_ascii=False)),
                 ]
+                if getattr(settings, "response_style", "plain") == "technical":
+                    messages = [SystemMessage(content=RESPONSE_STYLES["technical"] + "\n" + EXPERT_GROUNDING), messages[-1]]
                 response = self._plain_llm.invoke(messages)
                 parsed = parse_suggestion(response.content)
                 if missing_requested_example(question, parsed):
@@ -307,22 +313,42 @@ class AgentService:
                         parsed["quality_warnings"] = ["missing_requested_example"]
             else:
                 parsed = _parse_agent_output(result.get("output", ""))
+            issues = review_answer(self._review_llm, question, parsed, observed, tool_facts, history_text, topic)
+            if issues:
+                review_codes = list(dict.fromkeys(item["code"] for item in issues))
+                logger.warning("Answer requires repair: %s", review_codes)
+                # One repair, then a fresh second review (possibly same model).
+                # Never display or remember an answer that still fails review.
+                repaired = self._plain_llm.invoke(messages + [HumanMessage(content=json.dumps({
+                    "candidate_to_correct": parsed, "review_issues": issues,
+                    "task": "Rewrite the complete answer from original evidence and question. Resolve ALL review issues, including every requested subquestion. Remove unsupported claims; do not merely add disclaimers to them. Label proposals explicitly. Return complete corrected JSON."
+                }, ensure_ascii=False))])
+                parsed = parse_suggestion(repaired.content)
+                remaining = review_answer(self._review_llm, question, parsed, observed, tool_facts, history_text, topic)
+                if remaining:
+                    review_codes = list(dict.fromkeys(item["code"] for item in remaining))
+                    logger.warning("Answer rejected after repair: %s", review_codes)
+                    raise ValueError("Answer did not pass evidence/language/completeness review")
+            parsed["review_status"] = "model_reviewed"
             parsed["retrieved_sources"] = list(dict.fromkeys(
                 item.split("]", 1)[0] + "]" for item in observed
                 if item.startswith("[") and "]" in item
             ))
+            if include_evidence:
+                parsed["retrieved_chunks"] = list(dict.fromkeys(observed))
         except Exception:
             logger.exception("Agent execution failed")
             parsed = {
-                "key_point": "System could not generate a response. Please check server logs.",
+                "key_point": "Chưa tạo được câu trả lời đủ tin cậy. Vui lòng thử lại hoặc kiểm tra tài liệu.",
                 "keywords": [],
                 "framework_steps": [],
-                "error": "Agent execution failed",
+                "error": "Không thể tạo câu trả lời đủ tin cậy",
+                "quality_warnings": review_codes,
             }
 
         if not parsed.get("error"):
             ctx.add_user(question)
-            ctx.add_assistant(parsed["key_point"])
+            ctx.add_assistant("\n".join([parsed["key_point"], *parsed["framework_steps"]]))
         return parsed
 
 

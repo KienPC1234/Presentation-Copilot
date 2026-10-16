@@ -21,6 +21,8 @@ def main():
     parser.add_argument("--language", choices=["vi", "en", "auto"], default="vi")
     parser.add_argument("--whisper-model", default="base")
     parser.add_argument("--style", choices=["plain", "technical"], default="plain")
+    parser.add_argument("--answer-model", default="")
+    parser.add_argument("--review-model", default="")
     args = parser.parse_args()
     manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
     base = args.manifest.resolve().parent
@@ -33,6 +35,8 @@ def main():
         raise ValueError("Audio checksum mismatch")
     from config import settings
     settings.ollama_model = args.model
+    settings.ollama_answer_model = args.answer_model
+    settings.ollama_review_model = args.review_model
     settings.ollama_embedding_base_url = args.embedding_url
     settings.whisper_model_size = args.whisper_model
     settings.whisper_language = args.language
@@ -46,6 +50,8 @@ def main():
     report = {"project": manifest["topic"], "recording_kind": manifest["recording_kind"],
               "source_page": manifest["source_page"], "audio_sha256": digest,
               "model": args.model, "whisper": args.whisper_model,
+              "answer_model": args.answer_model or args.model,
+              "review_model": args.review_model or args.answer_model or args.model,
               "language": args.language, "style": args.style, "clips": [],
               "scope": "In-process WebSocket; original public interview questions transferred to a different real product; no human candidate interviewed"}
     with tempfile.TemporaryDirectory(prefix="copilot-real-interview-") as root:

@@ -21,6 +21,13 @@ class SecurityTests(unittest.TestCase):
         self.assertFalse(same_origin("https://evil.example", "localhost:8765"))
         self.assertFalse(same_origin("file:///app", "localhost:8765"))
 
+    def test_malformed_origin_is_rejected_without_server_exception(self):
+        self.assertFalse(same_origin("http://[invalid", "localhost:8765"))
+
+    def test_unicode_bearer_does_not_crash_constant_time_comparison(self):
+        self.assertFalse(authorized("192.168.1.2", "Bearer tiếng Việt", "secret"))
+        self.assertTrue(authorized("192.168.1.2", "Bearer tiếng Việt", "tiếng Việt"))
+
 
 if __name__ == "__main__":
     unittest.main()

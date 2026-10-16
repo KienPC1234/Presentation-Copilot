@@ -1,0 +1,496 @@
+{
+  "status": "not_accepted",
+  "generated_at_utc": "2026-10-16T17:12:24.363182+00:00",
+  "regression_tests_passed": 77,
+  "client_build": {"result": "passed", "warnings": 0, "errors": 0, "scope": "dotnet build --no-restore; not live WPF/microphone validation"},
+  "asr": [
+    {
+      "experiment": "base-clean",
+      "model": "base",
+      "wer": 0.46864686468646866,
+      "word_errors": 142,
+      "reference_units": 303,
+      "clips": 12,
+      "unique_sentences": 5,
+      "median_seconds": 1.63,
+      "max_seconds": 2.49
+    },
+    {
+      "experiment": "small-clean",
+      "model": "small",
+      "wer": 0.25742574257425743,
+      "word_errors": 78,
+      "reference_units": 303,
+      "clips": 12,
+      "unique_sentences": 5,
+      "median_seconds": 4.085,
+      "max_seconds": 6.41
+    },
+    {
+      "experiment": "medium-clean",
+      "model": "medium",
+      "wer": 0.11551155115511551,
+      "word_errors": 35,
+      "reference_units": 303,
+      "clips": 12,
+      "unique_sentences": 5,
+      "median_seconds": 11.075,
+      "max_seconds": 14.29
+    },
+    {
+      "experiment": "medium-noise15",
+      "model": "medium",
+      "wer": 0.14521452145214522,
+      "word_errors": 44,
+      "reference_units": 303,
+      "clips": 12,
+      "unique_sentences": 5,
+      "median_seconds": 10.71,
+      "max_seconds": 15.27
+    }
+  ],
+  "asr_source": {
+    "dataset": "google/fleurs",
+    "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+    "license": "CC BY 4.0",
+    "tsv_sha256": "eb744c2be5f677b49c35527d428a4f647294bd0f67abd790c296e91efaaffb93",
+    "selection": "first 12 TSV rows, before recognition; not a representative meeting sample"
+  },
+  "expert_experiments": [
+    {
+      "scope": "Generated Vietnamese expert questions; real RAG/model; concurrent independent agent sessions, not network or acoustic meeting test; semantic review required",
+      "model": "gpt-oss:120b-cloud",
+      "answer_model": "deepseek-v4.1-flash:cloud",
+      "review_model": "gemma4:31b-cloud",
+      "workers": 8,
+      "runs": 2,
+      "suite": "development",
+      "evidence_sha256": "57e76e74853a5b818db75c54e20357f7a8954a7e61d9297d4b9cd40db3d9a253",
+      "valid_answers": 16,
+      "blocked_or_failed_answers": 0,
+      "execution_gate_passed": true,
+      "all_requests_p95_seconds": 26.0,
+      "elapsed_seconds": 47.28,
+      "percentile_method": "nearest rank; includes blocked requests; not semantic accuracy",
+      "experiment": "professional-development",
+      "cases": [
+        {
+          "run": 1,
+          "role": "cto",
+          "seconds": 17.37,
+          "accepted_by_engine": true,
+          "quality_warnings": []
+        },
+        {
+          "run": 1,
+          "role": "teacher",
+          "seconds": 14.27,
+          "accepted_by_engine": true,
+          "quality_warnings": []
+        },
+        {
+          "run": 1,
+          "role": "security",
+          "seconds": 14.56,
+          "accepted_by_engine": true,
+          "quality_warnings": []
+        },
+        {
+          "run": 1,
+          "role": "operations",
+          "seconds": 20.15,
+          "accepted_by_engine": true,
+          "quality_warnings": []
+        },
+        {
+          "run": 1,
+          "role": "finance",
+          "seconds": 21.45,
+          "accepted_by_engine": true,
+          "quality_warnings": []
+        },
+        {
+          "run": 1,
+          "role": "product",
+          "seconds": 20.48,
+          "accepted_by_engine": true,
+          "quality_warnings": []
+        },
+        {
+          "run": 1,
+          "role": "chair",
+          "seconds": 26.0,
+          "accepted_by_engine": true,
+          "quality_warnings": []
+        },
+        {
+          "run": 1,
+          "role": "challenger",
+          "seconds": 16.42,
+          "accepted_by_engine": true,
+          "quality_warnings": []
+        },
+        {
+          "run": 2,
+          "role": "cto",
+          "seconds": 13.59,
+          "accepted_by_engine": true,
+          "quality_warnings": []
+        },
+        {
+          "run": 2,
+          "role": "teacher",
+          "seconds": 15.35,
+          "accepted_by_engine": true,
+          "quality_warnings": []
+        },
+        {
+          "run": 2,
+          "role": "security",
+          "seconds": 20.07,
+          "accepted_by_engine": true,
+          "quality_warnings": []
+        },
+        {
+          "run": 2,
+          "role": "operations",
+          "seconds": 21.26,
+          "accepted_by_engine": true,
+          "quality_warnings": []
+        },
+        {
+          "run": 2,
+          "role": "finance",
+          "seconds": 14.91,
+          "accepted_by_engine": true,
+          "quality_warnings": []
+        },
+        {
+          "run": 2,
+          "role": "product",
+          "seconds": 20.0,
+          "accepted_by_engine": true,
+          "quality_warnings": []
+        },
+        {
+          "run": 2,
+          "role": "chair",
+          "seconds": 16.51,
+          "accepted_by_engine": true,
+          "quality_warnings": []
+        },
+        {
+          "run": 2,
+          "role": "challenger",
+          "seconds": 15.88,
+          "accepted_by_engine": true,
+          "quality_warnings": []
+        }
+      ]
+    },
+    {
+      "scope": "Generated Vietnamese expert questions; real RAG/model; concurrent independent agent sessions, not network or acoustic meeting test; semantic review required",
+      "model": "gpt-oss:120b-cloud",
+      "answer_model": "deepseek-v4.1-flash:cloud",
+      "review_model": "gemma4:31b-cloud",
+      "workers": 8,
+      "runs": 3,
+      "suite": "holdout",
+      "evidence_sha256": "57e76e74853a5b818db75c54e20357f7a8954a7e61d9297d4b9cd40db3d9a253",
+      "valid_answers": 21,
+      "blocked_or_failed_answers": 3,
+      "execution_gate_passed": false,
+      "all_requests_p95_seconds": 34.88,
+      "elapsed_seconds": 90.32,
+      "percentile_method": "nearest rank; includes blocked requests; not semantic accuracy",
+      "experiment": "professional-holdout",
+      "cases": [
+        {
+          "run": 1,
+          "role": "unknown_technology",
+          "seconds": 24.8,
+          "accepted_by_engine": true,
+          "quality_warnings": []
+        },
+        {
+          "run": 1,
+          "role": "cross_account",
+          "seconds": 23.36,
+          "accepted_by_engine": true,
+          "quality_warnings": []
+        },
+        {
+          "run": 1,
+          "role": "availability",
+          "seconds": 24.4,
+          "accepted_by_engine": true,
+          "quality_warnings": []
+        },
+        {
+          "run": 1,
+          "role": "retry_race",
+          "seconds": 15.33,
+          "accepted_by_engine": true,
+          "quality_warnings": []
+        },
+        {
+          "run": 1,
+          "role": "learning_bias",
+          "seconds": 18.95,
+          "accepted_by_engine": true,
+          "quality_warnings": []
+        },
+        {
+          "run": 1,
+          "role": "priority_tradeoff",
+          "seconds": 25.91,
+          "accepted_by_engine": true,
+          "quality_warnings": []
+        },
+        {
+          "run": 1,
+          "role": "rollout_recovery",
+          "seconds": 24.0,
+          "accepted_by_engine": true,
+          "quality_warnings": []
+        },
+        {
+          "run": 1,
+          "role": "two_claims",
+          "seconds": 28.08,
+          "accepted_by_engine": true,
+          "quality_warnings": []
+        },
+        {
+          "run": 2,
+          "role": "unknown_technology",
+          "seconds": 22.89,
+          "accepted_by_engine": false,
+          "quality_warnings": [
+            "unsupported_claim"
+          ]
+        },
+        {
+          "run": 2,
+          "role": "cross_account",
+          "seconds": 19.69,
+          "accepted_by_engine": true,
+          "quality_warnings": []
+        },
+        {
+          "run": 2,
+          "role": "availability",
+          "seconds": 22.3,
+          "accepted_by_engine": true,
+          "quality_warnings": []
+        },
+        {
+          "run": 2,
+          "role": "retry_race",
+          "seconds": 26.72,
+          "accepted_by_engine": true,
+          "quality_warnings": []
+        },
+        {
+          "run": 2,
+          "role": "learning_bias",
+          "seconds": 16.17,
+          "accepted_by_engine": true,
+          "quality_warnings": []
+        },
+        {
+          "run": 2,
+          "role": "priority_tradeoff",
+          "seconds": 17.73,
+          "accepted_by_engine": true,
+          "quality_warnings": []
+        },
+        {
+          "run": 2,
+          "role": "rollout_recovery",
+          "seconds": 23.41,
+          "accepted_by_engine": true,
+          "quality_warnings": []
+        },
+        {
+          "run": 2,
+          "role": "two_claims",
+          "seconds": 18.4,
+          "accepted_by_engine": true,
+          "quality_warnings": []
+        },
+        {
+          "run": 3,
+          "role": "unknown_technology",
+          "seconds": 34.88,
+          "accepted_by_engine": false,
+          "quality_warnings": [
+            "unsupported_claim"
+          ]
+        },
+        {
+          "run": 3,
+          "role": "cross_account",
+          "seconds": 24.55,
+          "accepted_by_engine": true,
+          "quality_warnings": []
+        },
+        {
+          "run": 3,
+          "role": "availability",
+          "seconds": 24.01,
+          "accepted_by_engine": true,
+          "quality_warnings": []
+        },
+        {
+          "run": 3,
+          "role": "retry_race",
+          "seconds": 31.55,
+          "accepted_by_engine": false,
+          "quality_warnings": []
+        },
+        {
+          "run": 3,
+          "role": "learning_bias",
+          "seconds": 28.02,
+          "accepted_by_engine": true,
+          "quality_warnings": []
+        },
+        {
+          "run": 3,
+          "role": "priority_tradeoff",
+          "seconds": 33.71,
+          "accepted_by_engine": true,
+          "quality_warnings": []
+        },
+        {
+          "run": 3,
+          "role": "rollout_recovery",
+          "seconds": 28.76,
+          "accepted_by_engine": true,
+          "quality_warnings": []
+        },
+        {
+          "run": 3,
+          "role": "two_claims",
+          "seconds": 35.49,
+          "accepted_by_engine": true,
+          "quality_warnings": []
+        }
+      ]
+    },
+    {
+      "scope": "Generated Vietnamese expert questions; real RAG/model; concurrent independent agent sessions, not network or acoustic meeting test; semantic review required",
+      "model": "gpt-oss:120b-cloud",
+      "answer_model": "deepseek-v4.1-flash:cloud",
+      "review_model": "gemma4:31b-cloud",
+      "workers": 4,
+      "runs": 2,
+      "suite": "holdout",
+      "evidence_sha256": "57e76e74853a5b818db75c54e20357f7a8954a7e61d9297d4b9cd40db3d9a253",
+      "valid_answers": 2,
+      "blocked_or_failed_answers": 0,
+      "execution_gate_passed": true,
+      "all_requests_p95_seconds": 12.19,
+      "elapsed_seconds": 22.59,
+      "percentile_method": "nearest rank; includes blocked requests; not semantic accuracy",
+      "experiment": "professional-focused-unknown_technology",
+      "cases": [
+        {
+          "run": 1,
+          "role": "unknown_technology",
+          "seconds": 12.19,
+          "accepted_by_engine": true,
+          "quality_warnings": []
+        },
+        {
+          "run": 2,
+          "role": "unknown_technology",
+          "seconds": 10.4,
+          "accepted_by_engine": true,
+          "quality_warnings": []
+        }
+      ]
+    },
+    {
+      "scope": "Generated Vietnamese expert questions; real RAG/model; concurrent independent agent sessions, not network or acoustic meeting test; semantic review required",
+      "model": "gpt-oss:120b-cloud",
+      "answer_model": "deepseek-v4.1-flash:cloud",
+      "review_model": "gemma4:31b-cloud",
+      "workers": 4,
+      "runs": 2,
+      "suite": "development",
+      "evidence_sha256": "57e76e74853a5b818db75c54e20357f7a8954a7e61d9297d4b9cd40db3d9a253",
+      "valid_answers": 2,
+      "blocked_or_failed_answers": 0,
+      "execution_gate_passed": true,
+      "all_requests_p95_seconds": 8.2,
+      "elapsed_seconds": 14.2,
+      "percentile_method": "nearest rank; includes blocked requests; not semantic accuracy",
+      "experiment": "professional-focused-teacher",
+      "cases": [
+        {
+          "run": 1,
+          "role": "teacher",
+          "seconds": 6.0,
+          "accepted_by_engine": true,
+          "quality_warnings": []
+        },
+        {
+          "run": 2,
+          "role": "teacher",
+          "seconds": 8.2,
+          "accepted_by_engine": true,
+          "quality_warnings": []
+        }
+      ]
+    }
+  ],
+  "recorded_vietnamese_replay": {
+    "source_page": "https://vietsuccess.asia/podcasts/",
+    "audio_sha256": "fcfcc214767d6ba154e7307689d2233f6cb1e9964f2790a5fd71c3a01b2980df",
+    "whisper": "medium",
+    "language": "vi",
+    "style": "technical",
+    "model": "gpt-oss:120b-cloud",
+    "answer_model": "deepseek-v4.1-flash:cloud",
+    "review_model": "gemma4:31b-cloud",
+    "scope": "In-process WebSocket; original public interview questions transferred to a different real product; no human candidate interviewed",
+    "clips": [
+      {
+        "id": "vi-product-clarification",
+        "range_seconds": [
+          516,
+          540
+        ],
+        "duration_seconds": 24,
+        "elapsed_seconds": 38.66,
+        "events": [
+          "processing",
+          "transcript",
+          "suggestion"
+        ],
+        "asr_word_count": 94,
+        "asr_sha256": "d1c5bf59928daa8b7d1fc1f155053dab03d0f8207c21551acc772c86263a0178",
+        "asr_keywords": {
+          "phần mềm": true,
+          "học sinh": true
+        }
+      }
+    ],
+    "timings_ms": {
+      "stt": 23652,
+      "agent": 15005,
+      "total": 38657
+    }
+  },
+  "manual_open_findings": [
+    "One holdout retry_race request failed framework_steps schema validation before semantic review.",
+    "API behavior attributed to the wrong action in one operations answer: submission_status does not return replayed in supplied code.",
+    "Changed-ID authorization tests are omitted or confused with changing the product ID.",
+    "An unsupported established appeal right appeared in a key point; deterministic policy guard added and two focused reruns passed, full semantic regression still required.",
+    "A broad negative-technology guard rejected valid uncertainty; narrowed and two focused reruns passed.",
+    "Some answers mix draft upsert evidence with final submission replay, or omit deadline boundary cases.",
+    "Physical room acoustics, speaker overlap, long multi-turn conversations and full network audio concurrency have not passed acceptance."
+  ]
+}

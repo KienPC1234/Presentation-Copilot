@@ -2,17 +2,15 @@
 import json
 
 from langchain_core.messages import HumanMessage, SystemMessage
-from langchain_ollama import ChatOllama
-
-from config import settings
 from services.evidence_filter import filter_evidence
 from services.defense_validation import validate_plan
+from services.ollama_json import OllamaJSONClient
+from services.output_validation import parse_json_object
 
 class DefenseService:
     def __init__(self, rag):
         self._rag = rag
-        self._llm = ChatOllama(base_url=settings.ollama_base_url, model=settings.ollama_model,
-                               temperature=0, format="json")
+        self._llm = OllamaJSONClient()
 
     def prepare(self, topic, focus="", count=6, language="vi"):
         chunks = []
@@ -38,7 +36,7 @@ class DefenseService:
             HumanMessage(content=json.dumps({"topic": topic, "focus": focus, "count": count,
                 "language": language, "evidence": evidence}, ensure_ascii=False)),
         ])
-        questions = validate_plan(json.loads(response.content), evidence, count, language)
+        questions = validate_plan(parse_json_object(response.content), evidence, count, language)
         return {"topic": topic, "language": language, "question_origin": "ai_generated_preparation",
                 "questions": questions, "evidence": evidence,
                 "limitations": ["Citations identify supplied excerpts; outlines still need human checking."]}

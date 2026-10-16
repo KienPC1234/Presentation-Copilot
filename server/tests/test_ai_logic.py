@@ -54,3 +54,14 @@ class ContextTests(unittest.TestCase):
         self.assertNotIn("\n[SYS]", ctx.format_for_prompt())
         ctx.add_user("x" * 10000)
         self.assertEqual(len(ctx.get_history()[-1].content), 6000)
+
+    def test_prompt_budget_keeps_latest_complete_escaped_turns(self):
+        ctx = SessionContext("budget", max_turns=10)
+        for i in range(10):
+            ctx.add_user(str(i) + " x" * 2990)
+        prompt = ctx.format_for_prompt()
+        self.assertLessEqual(len(prompt), 24000)
+        self.assertIn('"9 ', prompt)
+        self.assertNotIn('"0 ', prompt)
+        for line in prompt.splitlines():
+            self.assertIsInstance(json.loads(line[4:]), str)

@@ -19,6 +19,7 @@ def load_agent():
         "langchain_ollama": {"ChatOllama": Mock()},
         "config": {"settings": SimpleNamespace(response_style="technical")},
         "services.react_parser": {"StructuredReActParser": Mock()},
+        "services.ollama_json": {"OllamaJSONClient": Mock()},
         "langchain_core.messages": {"HumanMessage": Mock(), "SystemMessage": Mock()},
     }.items():
         module = ModuleType(name)
@@ -39,6 +40,8 @@ class AgentContractTests(unittest.TestCase):
         self.agent._rag.query.return_value = ["[actual.md] evidence"]
         self.agent._executor = Mock()
         self.agent._plain_llm = Mock()
+        self.agent._review_llm = Mock()
+        self.agent._review_llm.invoke.return_value.content = '{"issues": []}'
         self.agent._plain_llm.invoke.return_value.content = json.dumps({
             "key_point": "Answer", "keywords": [], "framework_steps": [],
             "retrieved_sources": ["forged.md"]})
@@ -75,6 +78,35 @@ class AgentContractTests(unittest.TestCase):
         self.assertNotIn("error", result)
         self.agent._plain_llm.invoke.assert_called_once()
         self.assertEqual(result["retrieved_sources"], ["[actual.md]"])
+
+    def test_review_rejects_twice_without_remembering_answer(self):
+        self.agent._executor.invoke.return_value = {"intermediate_steps": []}
+        self.agent._review_llm.invoke.return_value.content = json.dumps({"issues": [
+            {"code": "unsupported_claim", "detail": "The endpoint is invented."}]})
+        with self.assertLogs(self.module.logger, level="ERROR"):
+            result = self.agent.run("question", self.ctx)
+        self.assertIn("error", result)
+        self.assertEqual(self.agent._plain_llm.invoke.call_count, 2)
+        self.assertEqual(self.agent._review_llm.invoke.call_count, 2)
+        self.assertEqual(self.ctx.get_history(), [])
+
+    def test_review_repairs_once_and_rechecks(self):
+        self.agent._executor.invoke.return_value = {"intermediate_steps": []}
+        self.agent._review_llm.invoke.side_effect = [
+            SimpleNamespace(content=json.dumps({"issues": [{"code": "unsupported_claim", "detail": "Unmeasured capacity."}]})),
+            SimpleNamespace(content='{"issues": []}')]
+        result = self.agent.run("question", self.ctx)
+        self.assertNotIn("error", result)
+        self.assertEqual(result["review_status"], "model_reviewed")
+        self.assertEqual(self.agent._review_llm.invoke.call_count, 2)
+
+    def test_optional_evidence_is_the_actual_observed_evidence_and_steps_are_remembered(self):
+        self.agent._executor.invoke.return_value = {"intermediate_steps": []}
+        self.agent._plain_llm.invoke.return_value.content = json.dumps({
+            "key_point": "Chưa có số đo.", "keywords": [], "framework_steps": ["Đề xuất thử quyền sở hữu."]})
+        result = self.agent.run("question", self.ctx, include_evidence=True)
+        self.assertEqual(result["retrieved_chunks"], ["[actual.md] evidence"])
+        self.assertIn("quyền sở hữu", self.ctx.get_history()[-1].content)
 
     def test_retrieval_failure_prevents_generation(self):
         self.agent._rag.query.side_effect = RuntimeError("offline")

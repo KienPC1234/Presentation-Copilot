@@ -3,8 +3,8 @@ import json
 import re
 
 
-def parse_suggestion(text: str) -> dict:
-    if not isinstance(text, str) or len(text) > 20000:
+def parse_json_object(text: str, max_chars: int = 20000) -> dict:
+    if not isinstance(text, str) or len(text) > max_chars:
         raise ValueError("Invalid model output")
     text = text.strip()
     if text.startswith("```"):
@@ -15,6 +15,11 @@ def parse_suggestion(text: str) -> dict:
     data = json.loads(text)
     if not isinstance(data, dict):
         raise ValueError("Expected a JSON object")
+    return data
+
+
+def parse_suggestion(text: str) -> dict:
+    data = parse_json_object(text)
     point = data.get("key_point")
     if not isinstance(point, str) or not point.strip() or len(point) > 2000:
         raise ValueError("Invalid key_point")

@@ -40,10 +40,10 @@ class SessionContext:
         self._history.append(Turn("user", text[:6000]))
 
     def add_assistant(self, text: str) -> None:
-        self._history.append(Turn("assistant", text[:2000]))
+        self._history.append(Turn("assistant", text[:6000]))
 
     def add_system(self, text: str) -> None:
-        self._history.append(Turn("system", text))
+        self._history.append(Turn("system", text[:6000]))
 
     def get_history(self) -> list[Turn]:
         return list(self._history)
@@ -51,10 +51,15 @@ class SessionContext:
     def format_for_prompt(self) -> str:
         """Return history as a compact multi-line string for prompt injection."""
         lines: list[str] = []
-        for turn in self._history:
+        remaining = 24000
+        for turn in reversed(self._history):
             prefix = {"user": "Q", "assistant": "A", "system": "SYS"}[turn.role]
-            lines.append(f"[{prefix}] {json.dumps(turn.content, ensure_ascii=False)}")
-        return "\n".join(lines)
+            line = f"[{prefix}] {json.dumps(turn.content, ensure_ascii=False)}"
+            if len(line) + 1 > remaining:
+                break
+            lines.append(line)
+            remaining -= len(line) + 1
+        return "\n".join(reversed(lines))
 
     def clear_history(self) -> None:
         self._history.clear()

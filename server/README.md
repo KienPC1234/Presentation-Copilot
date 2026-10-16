@@ -173,18 +173,37 @@ Send raw **16-bit signed, mono, little-endian PCM** bytes at the configured samp
 
 ---
 
-## Whisper Model Size vs. Speed
+## Measured Vietnamese speech results
 
-| Model | VRAM | Relative Speed | WER (en) |
-|---|---|---|---|
-| `tiny` | ~1 GB | Fastest | Higher |
-| `base` | ~1 GB | Fast | Good |
-| `small` | ~2 GB | Moderate | Better |
-| `medium` | ~5 GB | Slow | Very good |
-| `large-v3` | ~10 GB | Slowest | Best |
+The professional acceptance goal is active; this branch has not passed acceptance.
+See [the acceptance criteria](../PROFESSIONAL_ACCEPTANCE.md) and
+[the measured report](../PROFESSIONAL_VALIDATION.md).
 
-Set `WHISPER_MODEL_SIZE` in `.env`. For CPU-only deployments `base` or `small` offer the best speed/accuracy tradeoff.
+On 12 original Google FLEURS Vietnamese recordings (5 distinct sentences, 303
+normalized whitespace units), the measured CPU results were:
 
-> [!TIP]
-> Set `WHISPER_DEVICE=cuda` and `WHISPER_COMPUTE_TYPE=float16` if you have an NVIDIA GPU to achieve near-realtime transcription with `medium` or `large-v3`.
+| Model | Aggregate WER | Median seconds per clip |
+| --- | --- | --- |
+| base | 46.86% | 1.63 |
+| small | 25.74% | 4.09 |
+| medium | 11.55% | 11.08 |
+
+Medium with generated 15 dB Gaussian noise scored 14.52% WER. These are small
+read-speech experiments, not representative meeting, hardware or realtime guarantees.
+Startup/model download is excluded. GPU performance was not measured.
+
+Set `WHISPER_MODEL_SIZE` in `server/.env` and restart to load a different model.
+The default remains base. A larger model requires measuring both recognition
+quality and latency on the actual deployment hardware.
+
+`OLLAMA_ANSWER_MODEL` and `OLLAMA_REVIEW_MODEL` optionally separate composition
+and review from the ReAct model. JSON calls use final content with a per-call
+`LLM_TIMEOUT_SECONDS`; that timeout is not an end-to-end deadline. A completed
+model review is not independent factual verification. Cloud models receive
+the question and supplied excerpts; use only material authorized for that provider.
+
+Run one server worker per Chroma persistence directory. After an interrupted
+index write, clear the vectors and re-ingest all original scopes; do not remove
+the pending marker to bypass recovery. Re-ingestion is required to synchronize
+deleted source files; no filesystem watcher is running.
 

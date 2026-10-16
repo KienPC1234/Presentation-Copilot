@@ -1,5 +1,7 @@
 # Rà soát logic AI engine
 
+**Trạng thái 2026-10-17:** goal professional đang hoạt động, chưa nghiệm thu. Đã có lớp rà soát/sửa có giới hạn, kiểm thử vòng đời RAG và phép đo ASR tiếng Việt. Xem `PROFESSIONAL_ACCEPTANCE.md` và `PROFESSIONAL_VALIDATION.md` cho kết quả hiện tại; các số kiểm thử trong phần ban đầu bên dưới là số liệu lịch sử.
+
 **Bổ sung 2026-10-16:** đã chạy một số kiểm thử bằng mô hình thật trên server và sửa thêm lỗi parser ReAct. Xem `SERVER_VALIDATION.md` cùng JSON trong `validation/server-2026-10-16/`. Phần dưới là kết quả rà soát tĩnh ban đầu; chưa thể suy ra tỷ lệ chính xác tổng thể từ các smoke test mới.
 
 Phạm vi: STT, RAG, ReAct agent, LLMService dự phòng, đầu ra, ngữ cảnh và giao thức server. Đây là kiểm tra mã và kiểm thử logic bằng mô phỏng; không phải phép đo độ chính xác của mô hình.
@@ -21,16 +23,16 @@ Phạm vi: STT, RAG, ReAct agent, LLMService dự phòng, đầu ra, ngữ cản
 | --- | --- | --- |
 | P1 | RAG lấy top-k dù độ liên quan thấp; chưa có ngưỡng hoặc reranker | Tài liệu không liên quan vẫn có thể được dùng. Cần bộ câu hỏi có nhãn để hiệu chỉnh ngưỡng, không chọn một giá trị tùy ý. |
 | P1 | Chưa đối chiếu từng nhận định với đoạn nguồn | Có nguồn liên quan không chứng minh câu trả lời đúng. Cần cấu trúc claim → evidence và đánh giá hỗ trợ/không hỗ trợ. |
-| P1 | Tệp đã xóa không tự bị loại khỏi chỉ mục; tệp rỗng có thể giữ nội dung cũ | Cần manifest theo phạm vi ingest và cơ chế xóa an toàn sau khi quét thành công. |
-| P1 | Ingest, clear và query có thể chồng nhau | Có thể đọc trạng thái chỉ mục đang cập nhật. Cần khóa hoặc phiên bản chỉ mục nhất quán. |
+| Đã sửa theo phạm vi | Nạp lại thư mục loại nguồn xóa/rỗng sau khi quét thành công | Có kiểm thử giữ nguyên phạm vi khác và hủy cập nhật khi đọc lỗi; chưa có watcher tự đồng bộ. |
+| Đã sửa trong một instance | Ingest, clear và query dùng RLock; marker chặn đọc sau cập nhật dở dang | Có kiểm thử đọc–ghi và khởi động lại. Chưa hỗ trợ nhiều process cùng thư mục chỉ mục. |
 | P1 | Prompt injection chỉ được giảm thiểu bằng prompt và giới hạn công cụ | Chưa có kiểm thử đối kháng với mô hình thật; không thể kết luận đã loại bỏ prompt injection. |
 | P2 | Web search trả chuỗi tóm tắt, thiếu provenance có cấu trúc | Không dùng web snippets làm bằng chứng chính xác cho số liệu hoặc hành vi dự án; cần URL, ngày và trích đoạn. |
-| P2 | Ba vòng ReAct có thể không đủ cho câu hỏi nhiều phần | Hết vòng lặp hiện trở thành lỗi rõ ràng, nhưng chưa có chiến lược phân rã hay retry có giới hạn. |
+| P2 | Ba vòng ReAct có thể không đủ cho câu hỏi nhiều phần | Đã có bước soạn từ bằng chứng khi planner lỗi và một lần sửa theo review; vẫn thiếu phân rã yêu cầu con có kiểm chứng. |
 | P2 | Lịch sử giới hạn theo số message/ký tự, chưa theo token | Có thể vượt ngân sách ngữ cảnh hoặc mất thông tin quan trọng; cần ngân sách token và tóm tắt có nguồn. |
-| P2 | Facts chưa được đưa vào prompt; lịch sử chỉ lưu key point | Chưa có bộ nhớ facts hoạt động hoàn chỉnh; dễ mất chi tiết câu trả lời cũ. |
+| P2 | Facts hiện dùng presentation_topic, lịch sử lưu key point và các ý | Giới hạn prompt 24.000 ký tự; chưa có bộ nhớ facts có nguồn hay tóm tắt theo ngân sách token. |
 | P2 | Bộ tải chủ yếu PDF có text và các phần mở rộng mã/text đã liệt kê | Chưa có OCR, DOCX, PPTX, bảng tính hoặc đầy đủ phần mở rộng như TSX/JSX. |
 | P2 | STT chưa lọc theo độ tin cậy của từng segment | Chưa đo WER tiếng Việt/Anh, nhiễu, tên riêng hay hiện tượng tạo chữ từ âm thanh yếu. |
-| P2 | Cấu hình ngôn ngữ/prompt STT dùng chung và thay đổi khi đang xử lý | Cần snapshot cấu hình cho mỗi request và kiểm tra mã ngôn ngữ hợp lệ. |
+| P2 | Cấu hình ngôn ngữ/prompt STT vẫn dùng chung | Đã snapshot từng request, kiểm tra ngôn ngữ được model hỗ trợ và trả 422 khi sai; chưa có cấu hình riêng cho mỗi phiên. |
 
 ## Kiểm thử đã chạy
 
