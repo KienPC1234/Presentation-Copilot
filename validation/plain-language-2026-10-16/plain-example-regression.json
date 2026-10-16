@@ -1,0 +1,31 @@
+{
+  "label": "targeted-example-regression",
+  "model": "gpt-oss:120b-cloud",
+  "style": "plain",
+  "suite": "holdout",
+  "scope": "Synthetic fixed retrieval; regex checks and whitespace counts are not semantic accuracy scores or child comprehension tests",
+  "answers": [
+    {
+      "case": "holdout_comparison",
+      "question": "Dữ liệu chờ xử lý nghĩa là gì? Lấy một ví dụ đời thường cho dễ hiểu.",
+      "result": {
+        "key_point": "Dữ liệu chờ xử lý là dữ liệu đã được nhận nhưng hệ thống chưa kịp xử lý, vì vậy tạm thời lưu lại để xử lý sau; ví dụ như một email bạn gửi nhưng máy chủ chưa kịp gửi đi, nó sẽ nằm trong hộp chờ 9 ngày.",
+        "keywords": [
+          "dữ liệu",
+          "chờ",
+          "xử lý"
+        ],
+        "framework_steps": [],
+        "retrieved_sources": [
+          "[spec.md]"
+        ]
+      },
+      "elapsed_seconds": 6.2,
+      "whitespace_units": 55,
+      "heuristic_checks": {
+        "giống|ví dụ|\\bnhư\\b|chẳng hạn": true
+      },
+      "jargon_hits": []
+    }
+  ]
+}

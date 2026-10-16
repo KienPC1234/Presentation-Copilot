@@ -1,0 +1,31 @@
+{
+  "label": "language-control",
+  "model": "gpt-oss:120b-cloud",
+  "style": "plain",
+  "suite": "holdout",
+  "scope": "Synthetic fixed retrieval; regex checks and whitespace counts are not semantic accuracy scores or child comprehension tests",
+  "answers": [
+    {
+      "case": "holdout_english",
+      "question": "How long do Harbor access tokens last? Please keep it simple.",
+      "result": {
+        "key_point": "Thẻ truy cập của Harbor hết hạn sau 17 phút.",
+        "keywords": [
+          "access token",
+          "17 phút"
+        ],
+        "framework_steps": [],
+        "retrieved_sources": [
+          "[spec.md]"
+        ]
+      },
+      "elapsed_seconds": 2.57,
+      "whitespace_units": 14,
+      "heuristic_checks": {
+        "17": true,
+        "minute": false
+      },
+      "jargon_hits": []
+    }
+  ]
+}

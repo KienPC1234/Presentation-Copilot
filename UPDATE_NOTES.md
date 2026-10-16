@@ -1,5 +1,9 @@
 # Cập nhật: bảo mật, độ ổn định và kiểm tra logic AI
 
+## Trả lời dễ hiểu cho người lớn — 2026-10-16
+
+Mặc định `RESPONSE_STYLE=plain`: nói ngắn, từ quen thuộc, giữ số liệu và mức chắc chắn; có `technical` để chọn cách nói chuyên môn. Thêm bước biên soạn cuối dựa trên evidence, kiểm tra ví dụ với tối đa một lần sửa và bộ lọc hẹp cho chỉ dẫn ghi đè prompt trong tài liệu. Đã chạy so sánh 10 câu trước/sau, nhóm câu mới và regression, cùng 30 kiểm thử logic trên server. Xem `PLAIN_LANGUAGE_EVALUATION.md` và dữ liệu gốc; có ghi cả lỗi còn lại, chi phí thời gian và giới hạn của phép đánh giá.
+
 ## Kiểm thử server bổ sung — 2026-10-16
 
 Đã chạy trên môi trường riêng: 16 kiểm thử đạt, embedding Ollama + Chroma thật, agent cloud với ba case giả lập, Whisper tiny trên CPU và toàn luồng WebSocket bằng FastAPI TestClient. Sửa parser ReAct để nhận JSON hợp lệ trực tiếp và bổ sung cấu hình `OLLAMA_EMBEDDING_BASE_URL`. Thêm `runtime_smoke.py`, `protocol_smoke.py` và kết quả gốc. Xem `SERVER_VALIDATION.md` để biết lỗi môi trường, thời gian quan sát và phạm vi chưa kiểm chứng. Các mục giới hạn bên dưới mô tả mốc cập nhật ban đầu.

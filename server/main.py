@@ -350,6 +350,7 @@ async def get_engine_config() -> JSONResponse:
         "whisper": whisper_cfg,
         "ollama_model": settings.ollama_model,
         "ollama_base_url": settings.ollama_base_url,
+        "response_style": settings.response_style,
     })
 
 
