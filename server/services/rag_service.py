@@ -36,7 +36,7 @@ class RAGService:
 
     def __init__(self) -> None:
         self._embeddings = OllamaEmbeddings(
-            base_url=settings.ollama_base_url,
+            base_url=settings.ollama_embedding_base_url or settings.ollama_base_url,
             model="nomic-embed-text",
         )
         self._persist_dir = settings.chroma_persist_dir

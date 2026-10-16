@@ -18,6 +18,7 @@ def load_agent():
         "langchain_core.tools": {"tool": lambda function: function},
         "langchain_ollama": {"ChatOllama": Mock()},
         "config": {"settings": SimpleNamespace()},
+        "services.react_parser": {"StructuredReActParser": Mock()},
     }.items():
         module = ModuleType(name)
         module.__dict__.update(exports)

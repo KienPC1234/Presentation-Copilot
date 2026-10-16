@@ -10,6 +10,7 @@ class Settings(BaseSettings):
 
     # Ollama
     ollama_base_url: str = "http://localhost:11434"
+    ollama_embedding_base_url: str = ""
     ollama_model: str = "qwen2.5:7b"
 
     # Whisper STT

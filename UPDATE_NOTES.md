@@ -1,5 +1,9 @@
 # Cập nhật: bảo mật, độ ổn định và kiểm tra logic AI
 
+## Kiểm thử server bổ sung — 2026-10-16
+
+Đã chạy trên môi trường riêng: 16 kiểm thử đạt, embedding Ollama + Chroma thật, agent cloud với ba case giả lập, Whisper tiny trên CPU và toàn luồng WebSocket bằng FastAPI TestClient. Sửa parser ReAct để nhận JSON hợp lệ trực tiếp và bổ sung cấu hình `OLLAMA_EMBEDDING_BASE_URL`. Thêm `runtime_smoke.py`, `protocol_smoke.py` và kết quả gốc. Xem `SERVER_VALIDATION.md` để biết lỗi môi trường, thời gian quan sát và phạm vi chưa kiểm chứng. Các mục giới hạn bên dưới mô tả mốc cập nhật ban đầu.
+
 ## Thay đổi hành vi
 
 - API/WebSocket mặc định chỉ nhận kết nối cục bộ; hỗ trợ bearer token, kiểm tra Origin/Host và giới hạn buffer âm thanh. Docker yêu cầu API_TOKEN.

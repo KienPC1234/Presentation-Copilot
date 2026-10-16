@@ -25,6 +25,7 @@ from langchain_ollama import ChatOllama
 
 from config import settings
 from services.output_validation import parse_suggestion
+from services.react_parser import StructuredReActParser
 
 if TYPE_CHECKING:
     from services.context_manager import SessionContext
@@ -77,6 +78,10 @@ INSTRUCTIONS:
 - Prior assistant answers are not verified evidence. Never invent project metrics or capabilities.
 - If evidence is absent, irrelevant or contradictory, state what is unknown and request clarification.
 - Distinguish general advice from claims about this project; web snippets cannot prove project behavior.
+- framework_steps are a speaking outline answering this question, not an invented implementation workflow.
+- Every project-specific claim in key_point, keywords AND framework_steps must be supported by evidence.
+- Do not assume undocumented refresh endpoints, authentication flows, error codes or benchmark values.
+- Label any recommendation explicitly as a proposal; do not describe it as an existing feature.
 - Retrieve context from project documents/code via rag_search.
 - If calculation is needed (e.g. server costs, QPS, latency), use calculator.
 - Stop after at most 3 tool calls.
@@ -188,7 +193,8 @@ class AgentService:
     def _rebuild_executor(self) -> None:
         persona = self._get_active_persona()
         prompt = PromptTemplate.from_template(_BASE_TEMPLATE).partial(persona=persona)
-        agent = create_react_agent(self._llm, self._tools, prompt)
+        agent = create_react_agent(self._llm, self._tools, prompt,
+                                   output_parser=StructuredReActParser())
         self._executor = AgentExecutor(
             agent=agent,
             tools=self._tools,

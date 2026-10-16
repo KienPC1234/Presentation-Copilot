@@ -1,5 +1,7 @@
 # Rà soát logic AI engine
 
+**Bổ sung 2026-10-16:** đã chạy một số kiểm thử bằng mô hình thật trên server và sửa thêm lỗi parser ReAct. Xem `SERVER_VALIDATION.md` cùng JSON trong `validation/server-2026-10-16/`. Phần dưới là kết quả rà soát tĩnh ban đầu; chưa thể suy ra tỷ lệ chính xác tổng thể từ các smoke test mới.
+
 Phạm vi: STT, RAG, ReAct agent, LLMService dự phòng, đầu ra, ngữ cảnh và giao thức server. Đây là kiểm tra mã và kiểm thử logic bằng mô phỏng; không phải phép đo độ chính xác của mô hình.
 
 ## Các lỗi đã sửa
