@@ -18,6 +18,9 @@ def main():
     parser.add_argument("--model", required=True)
     parser.add_argument("--embedding-url", required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--language", choices=["vi", "en", "auto"], default="vi")
+    parser.add_argument("--whisper-model", default="base")
+    parser.add_argument("--style", choices=["plain", "technical"], default="plain")
     args = parser.parse_args()
     manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
     base = args.manifest.resolve().parent
@@ -31,8 +34,9 @@ def main():
     from config import settings
     settings.ollama_model = args.model
     settings.ollama_embedding_base_url = args.embedding_url
-    settings.whisper_model_size = "base"
-    settings.whisper_language = "en"
+    settings.whisper_model_size = args.whisper_model
+    settings.whisper_language = args.language
+    settings.response_style = args.style
     settings.whisper_initial_prompt = ""
     settings.api_token = ""
     from fastapi.testclient import TestClient
@@ -41,7 +45,8 @@ def main():
     decoded = decode_audio(str(audio_path), sampling_rate=16000)
     report = {"project": manifest["topic"], "recording_kind": manifest["recording_kind"],
               "source_page": manifest["source_page"], "audio_sha256": digest,
-              "model": args.model, "whisper": "base", "clips": [],
+              "model": args.model, "whisper": args.whisper_model,
+              "language": args.language, "style": args.style, "clips": [],
               "scope": "In-process WebSocket; original public interview questions transferred to a different real product; no human candidate interviewed"}
     with tempfile.TemporaryDirectory(prefix="copilot-real-interview-") as root:
         settings.chroma_persist_dir = str(Path(root) / "vectors")

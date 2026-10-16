@@ -43,3 +43,11 @@ Mặc định `RESPONSE_STYLE=plain`: nói ngắn, từ quen thuộc, giữ số
 Chưa chạy tích hợp bằng mô hình Ollama/Whisper và Chroma thực. Các kiểm thử orchestration dùng provider giả; không phải đánh giá độ chính xác câu trả lời. Transcript sớm chưa phải streaming STT/token liên tục. Nguồn liên quan chưa chứng minh từng nhận định. Chưa có ngưỡng liên quan RAG, tự loại tệp đã xóa, hoặc đánh giá chất lượng bằng tập câu hỏi/âm thanh chuẩn.
 
 Xem AI_ENGINE_REVIEW.md cho phát hiện và ưu tiên; DEVELOPMENT.md cho các mốc tiếp theo; server/benchmark.py để đo trên máy có đủ môi trường AI.
+# 2026-10-16 — thử chuyên gia tiếng Việt và nhiều phiên
+
+- Thêm bộ đánh giá 8 vai trò trên bằng chứng FPTEELiterature thật, 4 phiên agent đồng thời.
+- Sửa technical để soạn JSON có căn cứ, phục hồi khi planner lỗi; 47 kiểm thử qua.
+- Thêm tùy chọn tiếng Việt / Whisper / phong cách cho phát lại bản ghi người thật.
+- Đã chạy audio Vietsuccess tiếng Việt; không dùng từ khóa để tuyên bố độ chính xác.
+- Cấu trúc hợp lệ tăng 4/8 → 8/8, nhưng còn lỗi nội dung nghiêm trọng; **chưa sẵn sàng họp chuyên gia**. Chi tiết: EXPERT_MEETING_EVALUATION.md.
+

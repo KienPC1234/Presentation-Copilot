@@ -17,6 +17,12 @@ RESPONSE_STYLES = {
     ),
     "technical": (
         "Use concise technical language for an adult expert. Explain assumptions and retain precise units and limitations. "
+        "Answer every distinct subquestion, grouping related parts into at most four substantive steps. "
+        "Write every field in the question's language, explaining necessary technical terms briefly. "
+        "Explicitly distinguish documented implementation, unmeasured behavior and proposed tests or policies. "
+        "Absence in retrieved excerpts means not established by available evidence, never proof of absence. "
+        "Do not invent thresholds, endpoint names, existing appeal procedures or operational guarantees. "
+        "For a requested decision, state conditional criteria and who should validate them as proposals. "
         "Use up to 5 keywords and up to 4 framework_steps when useful."
     ),
 }

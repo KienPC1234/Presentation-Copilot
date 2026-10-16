@@ -38,6 +38,10 @@ class AgentContractTests(unittest.TestCase):
         self.agent._rag = Mock()
         self.agent._rag.query.return_value = ["[actual.md] evidence"]
         self.agent._executor = Mock()
+        self.agent._plain_llm = Mock()
+        self.agent._plain_llm.invoke.return_value.content = json.dumps({
+            "key_point": "Answer", "keywords": [], "framework_steps": [],
+            "retrieved_sources": ["forged.md"]})
         self.ctx = SessionContext("test")
 
     def test_evidence_supplied_before_generation(self):
@@ -57,11 +61,20 @@ class AgentContractTests(unittest.TestCase):
         self.agent._rag.query.assert_called_once_with("My real product: How reliable is it?", top_k=4)
 
     def test_invalid_answer_not_remembered(self):
+        self.agent._plain_llm.invoke.return_value.content = "invalid JSON"
         self.agent._executor.invoke.return_value = {"output": "Agent stopped due to iteration limit."}
         with self.assertLogs(self.module.logger, level="ERROR"):
             result = self.agent.run("question", self.ctx)
         self.assertIn("error", result)
         self.assertEqual(self.ctx.get_history(), [])
+
+    def test_technical_planner_failure_recovers_from_original_evidence(self):
+        self.agent._executor.invoke.side_effect = ValueError("invalid planner output")
+        with self.assertLogs(self.module.logger, level="WARNING"):
+            result = self.agent.run("question", self.ctx)
+        self.assertNotIn("error", result)
+        self.agent._plain_llm.invoke.assert_called_once()
+        self.assertEqual(result["retrieved_sources"], ["[actual.md]"])
 
     def test_retrieval_failure_prevents_generation(self):
         self.agent._rag.query.side_effect = RuntimeError("offline")
