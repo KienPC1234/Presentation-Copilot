@@ -1,5 +1,11 @@
 # Cập nhật: bảo mật, độ ổn định và kiểm tra logic AI
 
+## Trả lời rõ hơn: lọc câu lặp ASR + prompt chốt ý — 2026-10-17
+
+- `services/transcript.py`: gộp câu mà Whisper lặp lại (trùng khớp, hoặc là tiền tố ≥12 ký tự của một câu trong 8 câu gần nhất) và khối từ lặp sát nhau (≥3 từ). Gọi trong `transcriber.transcribe` nên cả phụ đề lẫn câu trả lời đều sạch — đây là nguyên nhân chính khiến câu trả lời bị "mơ hồ" khi người dùng nói (ASR lặp nguyên một câu và đọc sai số).
+- Composer prompt: mở đầu key_point bằng **một câu phán quyết trực tiếp**, khi thiếu bằng chứng phải kèm **một đề xuất cụ thể** (đo/kiểm thử/gán nhãn gì) chứ không dừng ở "chưa được chứng minh", và nếu câu hỏi nêu số cụ thể thì phải dùng đúng số đó (nêu cả số khác nếu tài liệu có).
+- Kết quả: câu hỏi 88 mẫu giờ trả về phán quyết thẳng + đề xuất "nhờ người ngoài nhóm gán nhãn độc lập rồi đo lại". **157 test OK** trong container.
+
 ## Phụ đề trực tiếp (live caption) — 2026-10-17
 
 - Server: khi bật, một task nền mỗi N giây phiên âm cửa sổ trượt rồi đẩy `{"type":"caption","text":…,"final":false}` về client **trong lúc đang nghe**, trước khi bấm phím. Không chạy khi pipeline trigger đang xử lý; chỉ gửi khi có audio mới (≥0,8 s) và transcript đổi (chống nhấp nháy); bỏ qua transcript rỗng hoặc đọc lại prompt.

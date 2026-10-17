@@ -4,6 +4,7 @@ from threading import RLock
 from faster_whisper import WhisperModel
 
 from config import settings
+from services.transcript import collapse_repetitions
 
 logger = logging.getLogger(__name__)
 
@@ -133,6 +134,7 @@ class TranscriberService:
                     transcript_parts.append(text)
 
             transcript = " ".join(transcript_parts).strip()
+            transcript = collapse_repetitions(transcript)
             if _echoes_prompt(transcript, initial_prompt):
                 logger.warning("Discarding a transcript that only echoes the biasing prompt: %.70s", transcript)
                 return ""
