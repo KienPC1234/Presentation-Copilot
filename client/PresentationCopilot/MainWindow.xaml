@@ -11,19 +11,25 @@
         Background="Transparent">
 
     <Grid>
-        <!-- System Tray Icon via Hardcodet.NotifyIcon.Wpf -->
+        <!-- System Tray Icon via Hardcodet.NotifyIcon.Wpf.
+             LeftOrRightClick keeps both mouse buttons opening the menu, so the
+             tray icon is easy to hit without knowing which button to use. -->
         <tb:TaskbarIcon x:Name="TrayIcon"
-                        ToolTipText="Presentation Copilot"
+                        ToolTipText="Presentation Copilot — left or right click for the menu"
                         MenuActivation="LeftOrRightClick">
             <tb:TaskbarIcon.ContextMenu>
                 <ContextMenu>
                     <MenuItem Header="Show / Hide HUD"
                               Click="MenuShowHud_Click"
                               FontWeight="SemiBold"/>
+                    <MenuItem Header="Pin / Unpin HUD (click-through)"
+                              Click="MenuTogglePin_Click"/>
                     <Separator/>
                     <MenuItem Header="Settings…"
                               Click="MenuSettings_Click"/>
                     <Separator/>
+                    <MenuItem Header="Hide tray icon (restore with the show/hide hotkey)"
+                              Click="MenuHideTray_Click"/>
                     <MenuItem Header="Exit"
                               Click="MenuExit_Click"/>
                 </ContextMenu>
@@ -31,4 +37,3 @@
         </tb:TaskbarIcon>
     </Grid>
 </Window>
-

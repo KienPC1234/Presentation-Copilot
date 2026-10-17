@@ -9,7 +9,7 @@
         Topmost="True"
         ShowInTaskbar="False"
         ResizeMode="NoResize"
-        Width="440"
+        Width="460"
         SizeToContent="Height"
         Left="50" Top="50"
         KeyDown="Window_KeyDown">
@@ -32,7 +32,9 @@
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Foreground" Value="#99FFFFFF"/>
             <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Padding" Value="6,2"/>
+            <Setter Property="Margin" Value="2,0,0,0"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template">
                 <Setter.Value>
@@ -67,17 +69,26 @@
             BorderBrush="#30363D"
             BorderThickness="1"
             Margin="8">
+        <Border.ContextMenu>
+            <ContextMenu>
+                <MenuItem Header="Pin / Unpin (click-through)" Click="CtxPin_Click"/>
+                <MenuItem Header="Copy suggestion" Click="BtnCopy_Click"/>
+                <Separator/>
+                <MenuItem Header="Settings…" Click="BtnSettings_Click"/>
+                <MenuItem Header="Hide HUD" Click="BtnHide_Click"/>
+            </ContextMenu>
+        </Border.ContextMenu>
         <Border.Effect>
             <DropShadowEffect Color="#000000" BlurRadius="24" ShadowDepth="6" Direction="270" Opacity="0.8"/>
         </Border.Effect>
 
         <StackPanel>
 
-            <!-- ── Top Header / Drag Handle ──────────────────────────── -->
+            <!-- ── Top Header / Drag Handle (always interactive) ─────── -->
             <Border x:Name="DragHandle"
                     Background="#161B22"
                     CornerRadius="11,11,0,0"
-                    Height="32"
+                    Height="34"
                     Padding="10,0"
                     Cursor="SizeAll"
                     MouseLeftButtonDown="DragHandle_MouseLeftButtonDown">
@@ -88,22 +99,20 @@
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
 
-                    <!-- Left: Status & Shield badge -->
+                    <!-- Left: connection dot + anti-capture status -->
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Grid.Column="0">
                         <Ellipse Width="8" Height="8" VerticalAlignment="Center" Margin="0,0,6,0">
                             <Ellipse.Fill>
                                 <Binding Path="IsConnected" Converter="{StaticResource BoolToColor}"/>
                             </Ellipse.Fill>
                         </Ellipse>
-                        <TextBlock Text="COPILOT" Foreground="#C9D1D9" FontSize="10" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,10,0"/>
 
-                        <!-- Anti-Capture (WDA) indicator -->
                         <Border Background="#1C3829" BorderBrush="#238636" BorderThickness="1" CornerRadius="4" Padding="5,1">
-                            <TextBlock Text="🛡️ ANTI-CAPTURE (WDA)"
-                                       Foreground="#3FB950"
+                            <TextBlock Text="{Binding AntiCaptureText}"
+                                       Foreground="{Binding IsAntiCaptureActive, Converter={StaticResource BoolToColor}}"
                                        FontSize="9"
                                        FontWeight="SemiBold"
-                                       ToolTip="Hidden from Zoom, Meet, OBS, Discord &amp; Screen Recordings via WDA_EXCLUDEFROMCAPTURE"/>
+                                       ToolTip="WDA_EXCLUDEFROMCAPTURE hides the HUD from Zoom, Meet, OBS, Discord and screen recordings when the OS supports it."/>
                         </Border>
                     </StackPanel>
 
@@ -116,23 +125,23 @@
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Grid.Column="2">
                         <Button x:Name="BtnClickThrough"
                                 Style="{StaticResource HeaderActionButton}"
-                                Content="📌 PIN"
-                                ToolTip="Toggle Click-Through Mode (Mouse clicks pass through to presentation)"
+                                Content="PIN"
+                                ToolTip="Toggle click-through so mouse clicks pass through to the presentation."
                                 Click="BtnClickThrough_Click"/>
                         <Button x:Name="BtnCopy"
                                 Style="{StaticResource HeaderActionButton}"
-                                Content="📋 COPY"
+                                Content="COPY"
                                 ToolTip="Copy suggestion to clipboard"
                                 Click="BtnCopy_Click"/>
                         <Button x:Name="BtnSettings"
                                 Style="{StaticResource HeaderActionButton}"
-                                Content="⚙️"
-                                ToolTip="Settings (Server URI, Opacity, Audio Buffer)"
+                                Content="SETTINGS"
+                                ToolTip="Open settings (server, hotkey, audio, opacity)"
                                 Click="BtnSettings_Click"/>
                         <Button x:Name="BtnHide"
                                 Style="{StaticResource HeaderActionButton}"
-                                Content="✕"
-                                ToolTip="Hide HUD (Press Esc or Hotkey to toggle)"
+                                Content="HIDE"
+                                ToolTip="Hide the HUD (press the show/hide hotkey to bring it back)"
                                 Click="BtnHide_Click"/>
                     </StackPanel>
                 </Grid>
@@ -154,7 +163,7 @@
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
-                        <TextBlock Text="👂 Q: " Foreground="#8B949E" FontSize="11" FontWeight="Bold" Grid.Column="0"/>
+                        <TextBlock Text="Q: " Foreground="#8B949E" FontSize="11" FontWeight="Bold" Grid.Column="0"/>
                         <TextBlock Text="{Binding QuestionText}"
                                    Foreground="#C9D1D9"
                                    FontSize="11"
@@ -236,11 +245,40 @@
                     </ItemsControl>
                 </StackPanel>
 
-                <!-- Footer Shortcut Help -->
+                <!-- Footer Shortcut Help / status bar -->
                 <Separator Background="#21262D" Margin="0,4,0,6"/>
                 <Grid>
-                    <TextBlock Text="{Binding StatusMessage}" Foreground="#8B949E" FontSize="10" HorizontalAlignment="Left"/>
-                    <TextBlock Text="Ctrl+Shift+Space to Analyze | Esc to Hide" Foreground="#484F58" FontSize="9" HorizontalAlignment="Right"/>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- VU meter + record state -->
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center"
+                                ToolTip="Input level — moving bar means the copilot is hearing audio.">
+                        <Border Width="56" Height="6" Background="#21262D" CornerRadius="3"
+                                ClipToBounds="True" VerticalAlignment="Center">
+                            <Rectangle Fill="#3FB950" HorizontalAlignment="Left" Width="56"
+                                       RenderTransformOrigin="0,0.5">
+                                <Rectangle.RenderTransform>
+                                    <ScaleTransform ScaleX="{Binding AudioLevel}"/>
+                                </Rectangle.RenderTransform>
+                            </Rectangle>
+                        </Border>
+                        <TextBlock Text="{Binding RecordingStateText}"
+                                   Foreground="#8B949E" FontSize="9" FontWeight="Bold"
+                                   VerticalAlignment="Center" Margin="6,0,0,0"/>
+                    </StackPanel>
+
+                    <TextBlock Grid.Column="1" Text="{Binding StatusMessage}"
+                               Foreground="#8B949E" FontSize="10"
+                               HorizontalAlignment="Left" Margin="10,0"
+                               TextTrimming="CharacterEllipsis"/>
+
+                    <TextBlock Grid.Column="2" Foreground="#484F58" FontSize="9" HorizontalAlignment="Right">
+                        <Run Text="{Binding HotkeyHint}"/><Run Text=" analyze  ·  "/><Run Text="{Binding ToggleHotkeyHint}"/><Run Text=" show/hide"/>
+                    </TextBlock>
                 </Grid>
 
             </StackPanel>

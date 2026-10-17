@@ -26,11 +26,27 @@ public sealed class MainViewModel : INotifyPropertyChanged
         set => SetField(ref _suggestionText, value);
     }
 
-    private string _keyPoint = "Ready. Press hotkey (Ctrl+Shift+Space) when asked a question.";
+    private string _keyPoint = "Ready. Press your hotkey when asked a question.";
     public string KeyPoint
     {
         get => _keyPoint;
         set => SetField(ref _keyPoint, value);
+    }
+
+    /// <summary>Human-readable hotkey shown in the HUD footer (e.g. "Ctrl+Shift+Space").</summary>
+    private string _hotkeyHint = "Ctrl+Shift+Space";
+    public string HotkeyHint
+    {
+        get => _hotkeyHint;
+        set => SetField(ref _hotkeyHint, value);
+    }
+
+    /// <summary>Human-readable show/hide hotkey shown in the HUD footer.</summary>
+    private string _toggleHotkeyHint = "Ctrl+Alt+H";
+    public string ToggleHotkeyHint
+    {
+        get => _toggleHotkeyHint;
+        set => SetField(ref _toggleHotkeyHint, value);
     }
 
     private string _keywords = string.Empty;
@@ -72,7 +88,22 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public bool IsRecording
     {
         get => _isRecording;
-        set => SetField(ref _isRecording, value);
+        set
+        {
+            if (SetField(ref _isRecording, value))
+                OnPropertyChanged(nameof(RecordingStateText));
+        }
+    }
+
+    /// <summary>Short "REC" / "PAUSED" badge shown next to the VU meter.</summary>
+    public string RecordingStateText => _isRecording ? "REC" : "PAUSED";
+
+    /// <summary>Input level, 0..1, for the HUD's VU meter.</summary>
+    private double _audioLevel;
+    public double AudioLevel
+    {
+        get => _audioLevel;
+        set => SetField(ref _audioLevel, value);
     }
 
     private bool _isBusy;
@@ -86,8 +117,15 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public bool IsAntiCaptureActive
     {
         get => _isAntiCaptureActive;
-        set => SetField(ref _isAntiCaptureActive, value);
+        set
+        {
+            if (SetField(ref _isAntiCaptureActive, value))
+                OnPropertyChanged(nameof(AntiCaptureText));
+        }
     }
+
+    /// <summary>Badge label reflecting whether the HUD is really hidden from screen capture.</summary>
+    public string AntiCaptureText => _isAntiCaptureActive ? "ANTI-CAPTURE" : "CAPTURE VISIBLE";
 
     private bool _isClickThrough;
     public bool IsClickThrough
@@ -181,6 +219,16 @@ public sealed class MainViewModel : INotifyPropertyChanged
         }
 
         OnPropertyChanged(nameof(HasSteps));
+        OnPropertyChanged(nameof(HasQuestion));
+    }
+
+    /// <summary>
+    /// Sets the question text from a live caption and makes sure the HUD shows the
+    /// question panel. Must be called on the UI thread.
+    /// </summary>
+    public void SetLiveCaption(string text)
+    {
+        QuestionText = text;
         OnPropertyChanged(nameof(HasQuestion));
     }
 

@@ -11,9 +11,16 @@ public partial class HudWindow : Window
 {
     // ── Win32 Extended Window Style ───────────────────────────────────────
     private const int GWL_EXSTYLE = -20;
-    private const int WS_EX_TRANSPARENT = 0x00000020;
     private const int WS_EX_TOOLWINDOW  = 0x00000080;
     private const int WS_EX_NOACTIVATE  = 0x08000000;
+
+    // ── Click-through via hit testing ─────────────────────────────────────
+    // WS_EX_TRANSPARENT makes the ENTIRE window ignore the mouse, which traps
+    // the user (UNPIN, SETTINGS and HIDE all become unreachable). Instead we
+    // answer WM_NCHITTEST with HTTRANSPARENT only for the body, so the header
+    // toolbar stays clickable while the rest passes through to the slide.
+    private const int WM_NCHITTEST  = 0x0084;
+    private const int HTTRANSPARENT = -1;
 
     // ── SetWindowDisplayAffinity (Windows 10 2004+ / Windows 11) ──────────
     // WDA_NONE (0x00): Default capture behavior.
@@ -37,6 +44,7 @@ public partial class HudWindow : Window
     // ─────────────────────────────────────────────────────────────────────
 
     private readonly MainViewModel _viewModel;
+    private HwndSource? _hwndSource;
     private bool _isClickThrough;
     private int HideFadeToken;
 
@@ -52,12 +60,16 @@ public partial class HudWindow : Window
     {
         var hwnd = new WindowInteropHelper(this).Handle;
 
-        // Set toolwindow + noactivate style
+        // Tool window (kept out of Alt+Tab) that never steals focus from the presentation.
         int exStyle = GetWindowLong(hwnd, GWL_EXSTYLE);
         SetWindowLong(hwnd, GWL_EXSTYLE, exStyle | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE);
 
-        // Apply modern Anti-Capture display affinity
+        // Hide from screen capture where the OS supports it.
         ApplyAntiCaptureAffinity(hwnd, enable: true);
+
+        // Hook the message loop so click-through covers only the body, never the header.
+        _hwndSource = HwndSource.FromHwnd(hwnd);
+        _hwndSource?.AddHook(HudWndProc);
     }
 
     /// <summary>
@@ -87,37 +99,85 @@ public partial class HudWindow : Window
     }
 
     /// <summary>
-    /// Enables click-through: mouse events pass through the HUD to windows below (e.g. presentation slide).
+    /// Toggles click-through. When on, mouse events over the body pass to the window
+    /// below (e.g. the slide) while the header toolbar stays interactive, so the user
+    /// can always click UNPIN or SETTINGS to get back in control.
     /// </summary>
     public void SetClickThrough(bool enable)
     {
-        var hwnd = new WindowInteropHelper(this).Handle;
-        int current = GetWindowLong(hwnd, GWL_EXSTYLE);
+        _isClickThrough = enable;
+
         if (enable)
         {
-            SetWindowLong(hwnd, GWL_EXSTYLE, current | WS_EX_TRANSPARENT);
-            BtnClickThrough.Content = "📍 UNPIN";
+            BtnClickThrough.Content = "UNPIN";
+            BtnClickThrough.ToolTip = "Click-through is ON and the HUD position is locked. Click UNPIN (or use the right-click menu / tray) to unlock and move it again.";
             BtnClickThrough.Foreground = System.Windows.Media.Brushes.Gold;
+            DragHandle.Cursor = System.Windows.Input.Cursors.Arrow;
         }
         else
         {
-            SetWindowLong(hwnd, GWL_EXSTYLE, current & ~WS_EX_TRANSPARENT);
-            BtnClickThrough.Content = "📌 PIN";
+            BtnClickThrough.Content = "PIN";
+            BtnClickThrough.ToolTip = "Toggle click-through so mouse clicks pass through to the presentation.";
             BtnClickThrough.Foreground = new System.Windows.Media.SolidColorBrush(
                 System.Windows.Media.Color.FromArgb(0x99, 0xFF, 0xFF, 0xFF));
+            DragHandle.Cursor = System.Windows.Input.Cursors.SizeAll;
         }
 
-        _isClickThrough = enable;
         _viewModel.IsClickThrough = enable;
+        _viewModel.StatusMessage = enable ? "Click-through ON · position locked" : "Click-through OFF";
+    }
+
+    private IntPtr HudWndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+    {
+        if (msg == WM_NCHITTEST && _isClickThrough && !IsOverHeader(lParam))
+        {
+            handled = true;
+            return new IntPtr(HTTRANSPARENT);
+        }
+        return IntPtr.Zero;
+    }
+
+    /// <summary>
+    /// True while the cursor is over the always-interactive header toolbar
+    /// (drag handle, PIN/UNPIN, COPY, SETTINGS, HIDE).
+    /// </summary>
+    private bool IsOverHeader(IntPtr lParam)
+    {
+        try
+        {
+            int lp = lParam.ToInt32();
+            short x = (short)(lp & 0xFFFF);
+            short y = (short)((lp >> 16) & 0xFFFF);
+
+            Point topLeft = DragHandle.PointToScreen(new Point(0, 0));
+            Point bottomRight = DragHandle.PointToScreen(
+                new Point(DragHandle.ActualWidth, DragHandle.ActualHeight));
+
+            return x >= topLeft.X && x <= bottomRight.X
+                && y >= topLeft.Y && y <= bottomRight.Y;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private void DragHandle_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
+        // The header stays clickable while pinned (so PIN/UNPIN and SETTINGS work),
+        // but dragging is disabled so a pinned overlay cannot be moved by accident.
+        if (_isClickThrough) return;
+
         if (e.ButtonState == MouseButtonState.Pressed)
             DragMove();
     }
 
     private void BtnClickThrough_Click(object sender, RoutedEventArgs e)
+    {
+        SetClickThrough(!_isClickThrough);
+    }
+
+    private void CtxPin_Click(object sender, RoutedEventArgs e)
     {
         SetClickThrough(!_isClickThrough);
     }
@@ -140,15 +200,16 @@ public partial class HudWindow : Window
             }
 
             Clipboard.SetText(sb.ToString());
-            _viewModel.StatusMessage = "Copied to clipboard!";
+            _viewModel.StatusMessage = "Copied to clipboard";
         }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"Clipboard copy failed: {ex.Message}");
+            _viewModel.StatusMessage = "Copy failed";
         }
     }
 
-    /// <summary>Raised when the user clicks the gear icon on the HUD.</summary>
+    /// <summary>Raised when the user clicks the settings button on the HUD.</summary>
     public event EventHandler? OpenSettingsRequested;
 
     private void BtnSettings_Click(object sender, RoutedEventArgs e)
