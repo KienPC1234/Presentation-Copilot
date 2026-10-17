@@ -76,14 +76,14 @@ python ingest.py
 python ingest.py --docs-dir /path/to/custom/docs
 ```
 
-This embeds all documents into ChromaDB at `./data/chroma/`. Re-run whenever you add new files.
+This embeds all documents into ChromaDB at `./data/chroma/`. Re-run whenever you add or change files. Existing chunks for each re-indexed file are replaced; the response includes related source names and PDF page numbers where available.
 
 ---
 
 ## Run the Server
 
 ```bash
-uvicorn main:app --host 0.0.0.0 --port 8765
+uvicorn main:app --host 127.0.0.1 --port 8765
 ```
 
 The server exposes:
@@ -92,13 +92,19 @@ The server exposes:
 |---|---|---|
 | `/ws` | WebSocket | Main audio + control channel |
 | `/health` | GET | Liveness check |
-| `/ingest` | POST | Trigger re-ingestion of `DOCS_DIR` |
+| `/api/ingest` | POST | Trigger re-ingestion of a chosen path |
+
+By default, API and WebSocket access is limited to the local machine. For access from another machine, set a long random `API_TOKEN` in `server/.env`, start Uvicorn on an explicitly chosen network interface, and set `PRESENTATION_COPILOT_API_TOKEN` to the same value in the Windows client's environment. Use TLS (`wss://`) across untrusted networks. The dashboard prompts for the bearer token when required and holds it in browser session storage. Browser requests with a different Origin are rejected.
+
+Audio is capped at `MAX_AUDIO_SECONDS` (default 90). The client stores editable settings in `%LOCALAPPDATA%/PresentationCopilot/appsettings.json` and loads them over the bundled defaults.
 
 ---
 
 ## Docker
 
 ### Build and run with Docker Compose
+
+Set `API_TOKEN` to a long random value in `server/.env` before starting Docker. Docker Compose requires it because connections forwarded into the container do not appear as loopback clients. Give the Windows client the same value in `PRESENTATION_COPILOT_API_TOKEN`.
 
 ```bash
 docker compose up --build
@@ -132,15 +138,16 @@ Send raw **16-bit signed, mono, little-endian PCM** bytes at the configured samp
 
 | Message | Description |
 |---|---|
-| `{"type": "trigger"}` | Flush buffer, run STT → RAG → LLM pipeline, return suggestion |
+| `{"type": "trigger", "request_id": "unique-id"}` | Flush buffer, run STT → RAG → LLM pipeline, return suggestion |
 | `{"type": "clear"}` | Discard the current audio buffer without processing |
 
 ### Server → client JSON responses
 
 | `type` | Additional fields | Description |
 |---|---|---|
-| `"processing"` | — | Sent immediately after trigger, before pipeline runs |
-| `"suggestion"` | `transcript`, `key_point`, `keywords`, `framework_steps` | Full pipeline result |
+| `"processing"` | `request_id` | Sent immediately after trigger |
+| `"transcript"` | `request_id`, `transcript`, `stt_ms` | Sent after STT, before agent completion |
+| `"suggestion"` | `request_id`, `transcript`, `key_point`, `keywords`, `framework_steps`, `retrieved_sources`, `timings_ms` | Full pipeline result |
 | `"error"` | `message` | Error detail |
 | `"ping"` | — | Heartbeat every 30 s |
 | `"cleared"` | — | Acknowledgement of `clear` request |
@@ -150,6 +157,7 @@ Send raw **16-bit signed, mono, little-endian PCM** bytes at the configured samp
 ```json
 {
   "type": "suggestion",
+  "request_id": "example-123",
   "transcript": "How does our authentication system handle token refresh?",
   "key_point": "The system uses short-lived JWTs with a sliding-window refresh strategy.",
   "keywords": ["JWT", "token refresh", "sliding window", "authentication", "security"],
@@ -157,24 +165,45 @@ Send raw **16-bit signed, mono, little-endian PCM** bytes at the configured samp
     "Explain the 15-minute access token lifetime",
     "Describe the refresh token rotation policy",
     "Highlight the revocation endpoint for logout"
-  ]
+  ],
+  "retrieved_sources": ["[architecture.md]"],
+  "timings_ms": {"stt": 650, "agent": 2200, "total": 2850}
 }
 ```
 
 ---
 
-## Whisper Model Size vs. Speed
+## Measured Vietnamese speech results
 
-| Model | VRAM | Relative Speed | WER (en) |
-|---|---|---|---|
-| `tiny` | ~1 GB | Fastest | Higher |
-| `base` | ~1 GB | Fast | Good |
-| `small` | ~2 GB | Moderate | Better |
-| `medium` | ~5 GB | Slow | Very good |
-| `large-v3` | ~10 GB | Slowest | Best |
+The professional acceptance goal is active; this branch has not passed acceptance.
+See [the acceptance criteria](../PROFESSIONAL_ACCEPTANCE.md) and
+[the measured report](../PROFESSIONAL_VALIDATION.md).
 
-Set `WHISPER_MODEL_SIZE` in `.env`. For CPU-only deployments `base` or `small` offer the best speed/accuracy tradeoff.
+On 12 original Google FLEURS Vietnamese recordings (5 distinct sentences, 303
+normalized whitespace units), the measured CPU results were:
 
-> [!TIP]
-> Set `WHISPER_DEVICE=cuda` and `WHISPER_COMPUTE_TYPE=float16` if you have an NVIDIA GPU to achieve near-realtime transcription with `medium` or `large-v3`.
+| Model | Aggregate WER | Median seconds per clip |
+| --- | --- | --- |
+| base | 46.86% | 1.63 |
+| small | 25.74% | 4.09 |
+| medium | 11.55% | 11.08 |
+
+Medium with generated 15 dB Gaussian noise scored 14.52% WER. These are small
+read-speech experiments, not representative meeting, hardware or realtime guarantees.
+Startup/model download is excluded. GPU performance was not measured.
+
+Set `WHISPER_MODEL_SIZE` in `server/.env` and restart to load a different model.
+The default remains base. A larger model requires measuring both recognition
+quality and latency on the actual deployment hardware.
+
+`OLLAMA_ANSWER_MODEL` and `OLLAMA_REVIEW_MODEL` optionally separate composition
+and review from the ReAct model. JSON calls use final content with a per-call
+`LLM_TIMEOUT_SECONDS`; that timeout is not an end-to-end deadline. A completed
+model review is not independent factual verification. Cloud models receive
+the question and supplied excerpts; use only material authorized for that provider.
+
+Run one server worker per Chroma persistence directory. After an interrupted
+index write, clear the vectors and re-ingest all original scopes; do not remove
+the pending marker to bypass recovery. Re-ingestion is required to synchronize
+deleted source files; no filesystem watcher is running.
 

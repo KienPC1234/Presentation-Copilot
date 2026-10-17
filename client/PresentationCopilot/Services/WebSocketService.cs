@@ -26,6 +26,13 @@ public sealed class WebSocketService : IAsyncDisposable
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
+        if (_client is not null)
+        {
+            await _client.Stop(WebSocketCloseStatus.NormalClosure, "Switching endpoint");
+            _client.Dispose();
+            _client = null;
+        }
+
         if (!serverUri.EndsWith("/ws") && !serverUri.EndsWith("/ws/"))
         {
             serverUri = serverUri.TrimEnd('/') + "/ws";
@@ -35,6 +42,9 @@ public sealed class WebSocketService : IAsyncDisposable
         {
             var ws = new ClientWebSocket();
             ws.Options.KeepAliveInterval = TimeSpan.FromSeconds(30);
+            var token = Environment.GetEnvironmentVariable("PRESENTATION_COPILOT_API_TOKEN");
+            if (!string.IsNullOrWhiteSpace(token))
+                ws.Options.SetRequestHeader("Authorization", "Bearer " + token);
             return ws;
         });
 
@@ -66,12 +76,13 @@ public sealed class WebSocketService : IAsyncDisposable
     /// </summary>
     public async Task SendAudioAsync(byte[] pcmData, CancellationToken cancellationToken = default)
     {
-        if (_client is null || !_client.IsRunning) return;
+        if (_client is null || !_client.IsRunning)
+            throw new InvalidOperationException("WebSocket disconnected");
 
         await _sendLock.WaitAsync(cancellationToken);
         try
         {
-            _ = _client.SendInstant(pcmData);
+            await _client.SendInstant(pcmData);
         }
         finally
         {
@@ -84,12 +95,13 @@ public sealed class WebSocketService : IAsyncDisposable
     /// </summary>
     public async Task SendTextAsync(string json, CancellationToken cancellationToken = default)
     {
-        if (_client is null || !_client.IsRunning) return;
+        if (_client is null || !_client.IsRunning)
+            throw new InvalidOperationException("WebSocket disconnected");
 
         await _sendLock.WaitAsync(cancellationToken);
         try
         {
-            _ = _client.SendInstant(json);
+            await _client.SendInstant(json);
         }
         finally
         {

@@ -1,0 +1,113 @@
+{
+  "scope": "Generated Vietnamese expert questions; real RAG/model; concurrent independent agent sessions, not network or acoustic meeting test; semantic review required",
+  "model": "gpt-oss:120b-cloud",
+  "evidence_sha256": "57e76e74853a5b818db75c54e20357f7a8954a7e61d9297d4b9cd40db3d9a253",
+  "before": {
+    "workers": 4,
+    "wall_seconds": 14.07,
+    "valid_answers": 4,
+    "cases": [
+      {
+        "role": "cto",
+        "seconds": 7.95
+      },
+      {
+        "role": "teacher",
+        "seconds": 4.14
+      },
+      {
+        "role": "security",
+        "seconds": 7.58
+      },
+      {
+        "role": "operations",
+        "seconds": 4.09
+      },
+      {
+        "role": "finance",
+        "seconds": 9.97
+      },
+      {
+        "role": "product",
+        "seconds": 2.54
+      },
+      {
+        "role": "chair",
+        "seconds": 4.12
+      },
+      {
+        "role": "challenger",
+        "seconds": 2.46
+      }
+    ]
+  },
+  "after": {
+    "workers": 4,
+    "wall_seconds": 19.16,
+    "valid_answers": 8,
+    "cases": [
+      {
+        "role": "cto",
+        "seconds": 8.01
+      },
+      {
+        "role": "teacher",
+        "seconds": 10.43
+      },
+      {
+        "role": "security",
+        "seconds": 8.54
+      },
+      {
+        "role": "operations",
+        "seconds": 10.99
+      },
+      {
+        "role": "finance",
+        "seconds": 9.45
+      },
+      {
+        "role": "product",
+        "seconds": 8.15
+      },
+      {
+        "role": "chair",
+        "seconds": 8.72
+      },
+      {
+        "role": "challenger",
+        "seconds": 5.81
+      }
+    ]
+  },
+  "vietnamese_audio": {
+    "source_page": "https://vietsuccess.asia/podcasts/",
+    "audio_sha256": "fcfcc214767d6ba154e7307689d2233f6cb1e9964f2790a5fd71c3a01b2980df",
+    "whisper": "base",
+    "language": "vi",
+    "style": "technical"
+  },
+  "audio_clips": [
+    {
+      "id": "vi-product-clarification",
+      "range_seconds": [
+        516,
+        540
+      ],
+      "duration_seconds": 24,
+      "elapsed_seconds": 11.34,
+      "events": [
+        "processing",
+        "transcript",
+        "suggestion"
+      ],
+      "asr_word_count": 89,
+      "asr_sha256": "ce487669884f4798982a1af9773e9fce54a18c7d234014d1e4bad5b069de6168",
+      "asr_keywords": {
+        "phần mềm": true,
+        "học sinh": true
+      }
+    }
+  ],
+  "semantic_status": "Not release-ready: invented security workflow, unsupported appeal procedure, mixed Chinese output, unsupported negative claim and wrong deployment stop criteria remain. No semantic accuracy percentage."
+}

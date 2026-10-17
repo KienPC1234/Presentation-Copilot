@@ -6,6 +6,26 @@
     <title>Presentation Copilot Server | Control Center</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
+        async function apiFetch(url, options = {}) {
+            const send = token => fetch(url, {
+                ...options,
+                headers: { ...(options.headers || {}), ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+            });
+            let token = sessionStorage.getItem('copilotApiToken') || '';
+            let response = await send(token);
+            if (response.status === 401) {
+                token = prompt('Enter the Presentation Copilot API token:') || '';
+                if (!token) throw new Error('API token required');
+                sessionStorage.setItem('copilotApiToken', token);
+                response = await send(token);
+            }
+            return response;
+        }
+
+        function escapeHtml(value) {
+            return String(value).replace(/[&<>"']/g, c => ({'&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'}[c]));
+        }
+
         tailwind.config = {
             darkMode: 'class',
             theme: {
@@ -31,7 +51,7 @@
 <body class="bg-darkbg text-gray-200 min-h-screen flex flex-col font-mono text-sm">
 
     <!-- Top Navigation -->
-    <header class="border-b border-bordercolor bg-cardbg px-6 py-4 flex items-center justify-between sticky top-0 z-50">
+    <header class="border-b border-bordercolor bg-cardbg px-6 py-4 flex flex-wrap gap-3 items-center justify-between sticky top-0 z-50">
         <div class="flex items-center space-x-3">
             <div class="w-3 h-3 rounded-full bg-emerald-500 animate-pulse"></div>
             <h1 class="text-base font-bold text-white tracking-wider flex items-center gap-2">
@@ -50,7 +70,10 @@
     <main class="flex-1 max-w-6xl w-full mx-auto p-6 space-y-6">
 
         <!-- Tab Selector -->
-        <div class="flex border-b border-bordercolor space-x-2 text-xs">
+        <div class="flex flex-wrap border-b border-bordercolor gap-2 text-xs">
+            <button onclick="switchTab('tab-defense')" id="btn-tab-defense" class="tab-btn px-4 py-3 border-b-2 border-transparent text-gray-400 hover:text-white">
+                CHUẨN BỊ PHẢN BIỆN
+            </button>
             <button onclick="switchTab('tab-ingest')" id="btn-tab-ingest" class="tab-btn px-4 py-2 border-b-2 border-accent text-accent font-bold">
                 📂 PROJECT INGESTION & PATH
             </button>
@@ -64,6 +87,27 @@
                 📊 ENGINE METRICS
             </button>
         </div>
+
+        <section id="tab-defense" class="tab-content hidden space-y-5 text-base" aria-labelledby="defenseHeading">
+            <div class="bg-cardbg border border-bordercolor rounded-xl p-6 space-y-4 font-sans">
+                <h2 id="defenseHeading" class="text-lg font-bold text-white">Chuẩn bị câu hỏi phản biện</h2>
+                <p class="text-sm text-gray-300">Nạp tài liệu dự án trước, rồi tạo câu hỏi để luyện trình bày. Đây là câu hỏi do AI gợi ý, không phải câu hỏi lấy từ một cuộc phỏng vấn thật.</p>
+                <form id="defenseForm" class="space-y-4">
+                    <div><label for="defenseTopic" class="block mb-2">Tên sản phẩm / đề tài</label>
+                        <input id="defenseTopic" required minlength="3" maxlength="200" placeholder="Ví dụ: nền tảng học tập trực tuyến" class="w-full bg-darkbg border border-bordercolor rounded-lg p-3"></div>
+                    <div><label for="defenseFocus" class="block mb-2">Điều bạn muốn luyện thêm (không bắt buộc)</label>
+                        <textarea id="defenseFocus" maxlength="2000" rows="2" class="w-full bg-darkbg border border-bordercolor rounded-lg p-3" placeholder="Ví dụ: giải thích lợi ích, bằng chứng kiểm thử, rủi ro"></textarea></div>
+                    <div class="flex flex-wrap gap-4 items-end">
+                        <div><label for="defenseCount" class="block mb-2">Số câu hỏi</label><select id="defenseCount" class="bg-darkbg border border-bordercolor rounded-lg p-3"><option>6</option><option>9</option><option>12</option></select></div>
+                        <div><label for="defenseLanguage" class="block mb-2">Ngôn ngữ</label><select id="defenseLanguage" class="bg-darkbg border border-bordercolor rounded-lg p-3"><option value="vi">Tiếng Việt</option><option value="en">English</option></select></div>
+                        <button id="defenseSubmit" class="bg-blue-700 hover:bg-blue-600 text-white rounded-lg px-5 py-3 disabled:opacity-50" type="submit">Tạo bộ câu hỏi</button>
+                        <button id="defenseDownload" type="button" disabled class="border border-bordercolor rounded-lg px-5 py-3 disabled:opacity-50">Lưu bộ câu hỏi</button>
+                    </div>
+                </form>
+                <p id="defenseStatus" role="status" aria-live="polite" class="text-sm text-gray-300"></p>
+            </div>
+            <div id="defenseQuestions" class="grid gap-4 font-sans"></div>
+        </section>
 
         <!-- ── TAB 1: INGESTION & PATH ─────────────────────────────── -->
         <div id="tab-ingest" class="tab-content space-y-6">
@@ -332,7 +376,7 @@
 
         async function refreshStats() {
             try {
-                const res = await fetch('/api/stats');
+                const res = await apiFetch('/api/stats');
                 const data = await res.json();
                 document.getElementById('statTotalChunks').innerText = data.total_chunks || 0;
                 document.getElementById('statFilesCount').innerText = data.indexed_files_count || 0;
@@ -350,7 +394,7 @@
             resBox.innerHTML = '<span class="text-gray-400">Scanning path...</span>';
 
             try {
-                const res = await fetch('/api/verify-path', {
+                const res = await apiFetch('/api/verify-path', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ path })
@@ -359,14 +403,14 @@
                 if (data.valid) {
                     resBox.innerHTML = `
                         <div class="text-emerald-400 font-bold">✓ Path Verified: Readable (${data.total_files} candidate files detected)</div>
-                        <div class="text-gray-400 text-[11px] mt-1">Resolved: ${data.resolved_path}</div>
-                        <div class="text-gray-500 text-[11px] mt-1">Samples: ${data.sample_files.join(', ') || 'None'}</div>
+                        <div class="text-gray-400 text-[11px] mt-1">Resolved: ${escapeHtml(data.resolved_path)}</div>
+                        <div class="text-gray-500 text-[11px] mt-1">Samples: ${escapeHtml(data.sample_files.join(', ') || 'None')}</div>
                     `;
                 } else {
-                    resBox.innerHTML = `<div class="text-red-400 font-bold">✗ ${data.error}</div>`;
+                    resBox.innerHTML = `<div class="text-red-400 font-bold">✗ ${escapeHtml(data.error)}</div>`;
                 }
             } catch (err) {
-                resBox.innerHTML = `<div class="text-red-400 font-bold">Error: ${err.message}</div>`;
+                resBox.innerHTML = `<div class="text-red-400 font-bold">Error: ${escapeHtml(err.message)}</div>`;
             }
         }
 
@@ -379,7 +423,7 @@
             statusEl.innerHTML = '<span class="text-amber-400">⏳ Ingesting & embedding chunks into ChromaDB...</span>';
 
             try {
-                const res = await fetch('/api/ingest', {
+                const res = await apiFetch('/api/ingest', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ path })
@@ -389,10 +433,10 @@
                     statusEl.innerHTML = `<span class="text-emerald-400 font-bold">✓ Successfully ingested ${data.chunks_ingested} chunks from ${data.files_indexed} files!</span>`;
                     refreshStats();
                 } else {
-                    statusEl.innerHTML = `<span class="text-red-400">Failed: ${data.error || 'Unknown error'}</span>`;
+                    statusEl.innerHTML = `<span class="text-red-400">Failed: ${escapeHtml(data.error || 'Unknown error')}</span>`;
                 }
             } catch (err) {
-                statusEl.innerHTML = `<span class="text-red-400">Error: ${err.message}</span>`;
+                statusEl.innerHTML = `<span class="text-red-400">Error: ${escapeHtml(err.message)}</span>`;
             } finally {
                 btn.disabled = false;
             }
@@ -401,7 +445,7 @@
         async function clearVectors() {
             if (!confirm("Are you sure you want to clear the vector database?")) return;
             try {
-                await fetch('/api/clear-vectors', { method: 'POST' });
+                await apiFetch('/api/clear-vectors', { method: 'POST' });
                 refreshStats();
                 alert("Vector database cleared.");
             } catch (err) {
@@ -411,7 +455,7 @@
 
         async function loadPersona() {
             try {
-                const res = await fetch('/api/persona');
+                const res = await apiFetch('/api/persona');
                 const data = await res.json();
                 document.getElementById('personaPreset').value = data.current_key;
                 document.getElementById('personaPrompt').value = data.active_prompt;
@@ -425,7 +469,7 @@
             if (key === 'custom') {
                 document.getElementById('personaPrompt').value = "Custom role: Enter instructions here...";
             } else {
-                fetch('/api/persona')
+                apiFetch('/api/persona')
                     .then(r => r.json())
                     .then(data => {
                         // Just trigger preview
@@ -439,7 +483,7 @@
             const status = document.getElementById('personaStatus');
 
             try {
-                const res = await fetch('/api/persona', {
+                const res = await apiFetch('/api/persona', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ key, custom_text: text })
@@ -464,7 +508,7 @@
             outBox.classList.remove('hidden');
 
             try {
-                const res = await fetch('/api/simulate', {
+                const res = await apiFetch('/api/simulate', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ question: q })
@@ -475,11 +519,11 @@
 
                 const kwContainer = document.getElementById('simKeywords');
                 kwContainer.innerHTML = (data.keywords || []).map(k =>
-                    `<span class="px-2.5 py-1 bg-gray-800 border border-bordercolor rounded-md text-blue-400 text-xs">${k}</span>`
+                    `<span class="px-2.5 py-1 bg-gray-800 border border-bordercolor rounded-md text-blue-400 text-xs">${escapeHtml(k)}</span>`
                 ).join('') || '<span class="text-gray-500 text-xs">None</span>';
 
                 const stepsContainer = document.getElementById('simSteps');
-                stepsContainer.innerHTML = (data.framework_steps || []).map(s => `<li>${s}</li>`).join('') || '<li class="text-gray-500">None</li>';
+                stepsContainer.innerHTML = (data.framework_steps || []).map(s => `<li>${escapeHtml(s)}</li>`).join('') || '<li class="text-gray-500">None</li>';
 
                 const chunksContainer = document.getElementById('simChunks');
                 chunksContainer.innerText = (data.retrieved_chunks || []).join('\n---\n') || 'No context retrieved.';
@@ -493,7 +537,7 @@
 
         async function loadEngineConfig() {
             try {
-                const res = await fetch('/api/config');
+                const res = await apiFetch('/api/config');
                 const data = await res.json();
                 if (data.whisper) {
                     document.getElementById('whisperLang').value = data.whisper.language || 'vi';
@@ -514,7 +558,7 @@
             const status = document.getElementById('cfgStatus');
 
             try {
-                const res = await fetch('/api/config', {
+                const res = await apiFetch('/api/config', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ whisper_language: lang, whisper_initial_prompt: prompt })
@@ -529,6 +573,54 @@
         }
 
         // Init on load
+        let defensePlan = null;
+        document.getElementById('defenseForm').addEventListener('submit', async event => {
+            event.preventDefault();
+            const button = document.getElementById('defenseSubmit');
+            const status = document.getElementById('defenseStatus');
+            const download = document.getElementById('defenseDownload');
+            button.disabled = true;
+            button.setAttribute('aria-busy', 'true');
+            download.disabled = true;
+            defensePlan = null;
+            document.getElementById('defenseQuestions').replaceChildren();
+            status.textContent = 'Đang đọc tài liệu và chuẩn bị câu hỏi…';
+            try {
+                const response = await apiFetch('/api/defense/prepare', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({
+                    topic: document.getElementById('defenseTopic').value.trim(), focus: document.getElementById('defenseFocus').value.trim(),
+                    count: Number(document.getElementById('defenseCount').value), language: document.getElementById('defenseLanguage').value
+                })});
+                const data = await response.json();
+                if (!response.ok) {
+                    const messages = {502: 'Bộ câu hỏi AI trả về chưa hợp lệ. Hãy thử tạo lại.', 503: 'Dịch vụ AI hiện chưa sẵn sàng. Vui lòng thử lại.', 422: 'Hãy kiểm tra tên đề tài và số câu hỏi.'};
+                    throw new Error(messages[response.status] || 'Không tạo được bộ câu hỏi. Hãy kiểm tra dữ liệu và thử lại.');
+                }
+                defensePlan = data;
+                for (const [index, question] of data.questions.entries()) {
+                    const card = document.createElement('article');
+                    card.className = 'bg-cardbg border border-bordercolor rounded-xl p-5 space-y-3';
+                    const title = document.createElement('h3'); title.className = 'font-bold text-base text-white'; title.textContent = `${index + 1}. ${question.question}`; card.append(title);
+                    for (const line of [`Mục đích: ${question.purpose}`, ...question.answer_outline.map(x => `• ${x}`), `Hỏi tiếp: ${question.follow_up}`,
+                        question.evidence_status === 'cited' ? `Đoạn tài liệu tham khảo: ${question.evidence_ids.join(', ')} — cần kiểm tra lại câu trả lời.` : 'Chưa có đoạn tài liệu làm căn cứ: cần chuẩn bị thêm bằng chứng.']) {
+                        const text = document.createElement('p'); text.textContent = line; card.append(text);
+                    }
+                    document.getElementById('defenseQuestions').append(card);
+                }
+                const details = document.createElement('details');
+                const summary = document.createElement('summary'); summary.textContent = 'Xem các đoạn tài liệu đã dùng'; details.append(summary);
+                for (const item of data.evidence) { const text = document.createElement('p'); text.className = 'whitespace-pre-wrap py-3'; text.textContent = `${item.id}: ${item.excerpt}`; details.append(text); }
+                document.getElementById('defenseQuestions').append(details);
+                status.textContent = `Đã chuẩn bị ${data.questions.length} câu hỏi. Hãy đối chiếu dàn ý với tài liệu trước khi sử dụng.`;
+                download.disabled = false;
+            } catch (error) { status.textContent = `Không hoàn tất: ${error.message}`; }
+            finally { button.disabled = false; button.removeAttribute('aria-busy'); }
+        });
+        document.getElementById('defenseDownload').addEventListener('click', () => {
+            if (!defensePlan) return;
+            const url = URL.createObjectURL(new Blob([JSON.stringify(defensePlan, null, 2)], {type: 'application/json'}));
+            const anchor = document.createElement('a'); anchor.href = url; anchor.download = 'defense-preparation.json'; anchor.click();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+        });
         refreshStats();
         loadEngineConfig();
     </script>

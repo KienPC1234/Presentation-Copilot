@@ -1,4 +1,6 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from typing import Literal
+from pydantic import Field
 
 
 class Settings(BaseSettings):
@@ -10,7 +12,13 @@ class Settings(BaseSettings):
 
     # Ollama
     ollama_base_url: str = "http://localhost:11434"
+    ollama_embedding_base_url: str = ""
     ollama_model: str = "qwen2.5:7b"
+    ollama_answer_model: str = ""  # Empty uses ollama_model.
+    ollama_review_model: str = ""  # Empty uses the answer model; no independence claim.
+    llm_timeout_seconds: float = Field(default=45, gt=0, le=120)
+    ollama_json_disable_thinking: bool = True
+    response_style: Literal["plain", "technical"] = "plain"
 
     # Whisper STT
     whisper_model_size: str = "base"
@@ -24,8 +32,10 @@ class Settings(BaseSettings):
     docs_dir: str = "./data/docs"
 
     # Server
-    host: str = "0.0.0.0"
+    host: str = "127.0.0.1"
     port: int = 8765
+    api_token: str = ""
+    max_audio_seconds: int = 90
 
     # Audio
     audio_sample_rate: int = 16000

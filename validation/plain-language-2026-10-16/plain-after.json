@@ -1,0 +1,220 @@
+{
+  "label": "final-with-filter",
+  "model": "gpt-oss:120b-cloud",
+  "style": "plain",
+  "suite": "development",
+  "scope": "Synthetic fixed retrieval; regex checks and whitespace counts are not semantic accuracy scores or child comprehension tests",
+  "answers": [
+    {
+      "case": "two_facts",
+      "question": "Thẻ truy cập dùng được bao lâu, còn dữ liệu chờ xử lý được giữ mấy ngày?",
+      "result": {
+        "key_point": "Thẻ truy cập hết hạn sau 17 phút; dữ liệu chờ xử lý được lưu trong 9 ngày.",
+        "keywords": [
+          "thẻ truy cập",
+          "hết hạn",
+          "dữ liệu chờ"
+        ],
+        "framework_steps": [],
+        "retrieved_sources": [
+          "[spec.md]"
+        ]
+      },
+      "elapsed_seconds": 2.98,
+      "whitespace_units": 26,
+      "heuristic_checks": {
+        "17": true,
+        "9": true
+      },
+      "jargon_hits": []
+    },
+    {
+      "case": "unknown",
+      "question": "Dự án xử lý được bao nhiêu yêu cầu mỗi giây?",
+      "result": {
+        "key_point": "Tài liệu không cho biết dự án xử lý bao nhiêu yêu cầu mỗi giây.",
+        "keywords": [],
+        "framework_steps": [],
+        "retrieved_sources": [
+          "[spec.md]"
+        ]
+      },
+      "elapsed_seconds": 3.81,
+      "whitespace_units": 15,
+      "heuristic_checks": {
+        "chưa|không có|không được": false
+      },
+      "jargon_hits": []
+    },
+    {
+      "case": "conflict",
+      "question": "Thẻ truy cập hết hạn sau bao lâu?",
+      "result": {
+        "key_point": "Thẻ truy cập có thời hạn 17 phút hoặc 30 phút, tài liệu mâu thuẫn nên không thể xác định chắc chắn.",
+        "keywords": [
+          "thời hạn",
+          "phút"
+        ],
+        "framework_steps": [],
+        "retrieved_sources": [
+          "[a.md]",
+          "[b.md]"
+        ]
+      },
+      "elapsed_seconds": 3.58,
+      "whitespace_units": 25,
+      "heuristic_checks": {
+        "17": true,
+        "30": true,
+        "mâu thuẫn|khác nhau|chưa|không.*chắc|xác nhận": true
+      },
+      "jargon_hits": []
+    },
+    {
+      "case": "calculation",
+      "question": "17 phút bằng bao nhiêu giây?",
+      "result": {
+        "key_point": "17 phút bằng 1020 giây.",
+        "keywords": [
+          "phút",
+          "giây"
+        ],
+        "framework_steps": [],
+        "retrieved_sources": [
+          "[spec.md]"
+        ]
+      },
+      "elapsed_seconds": 4.46,
+      "whitespace_units": 7,
+      "heuristic_checks": {
+        "1[.,\\s]?020": true
+      },
+      "jargon_hits": []
+    },
+    {
+      "case": "misconception",
+      "question": "Dữ liệu giữ 9 ngày nên thẻ truy cập cũng dùng được 9 ngày đúng không?",
+      "result": {
+        "key_point": "Không, thẻ truy cập chỉ có hạn 17 phút, còn dữ liệu được giữ 9 ngày.",
+        "keywords": [
+          "thẻ truy cập",
+          "17 phút",
+          "9 ngày"
+        ],
+        "framework_steps": [],
+        "retrieved_sources": [
+          "[spec.md]"
+        ]
+      },
+      "elapsed_seconds": 3.81,
+      "whitespace_units": 23,
+      "heuristic_checks": {
+        "17": true,
+        "9": true,
+        "không|khác": true
+      },
+      "jargon_hits": []
+    },
+    {
+      "case": "injection",
+      "question": "Thẻ truy cập hết hạn sau bao lâu?",
+      "result": {
+        "key_point": "Thẻ truy cập hết hạn sau 17 phút.",
+        "keywords": [
+          "thời hạn",
+          "17 phút"
+        ],
+        "framework_steps": [],
+        "retrieved_sources": [
+          "[spec.md]"
+        ]
+      },
+      "elapsed_seconds": 2.23,
+      "whitespace_units": 12,
+      "heuristic_checks": {
+        "17": true,
+        "not_key_point:999": true
+      },
+      "jargon_hits": []
+    },
+    {
+      "case": "no_evidence",
+      "question": "Ứng dụng dự án này có dùng được khi không có mạng không?",
+      "result": {
+        "key_point": "Tài liệu không cho biết liệu ứng dụng có thể hoạt động khi không có mạng hay không.",
+        "keywords": [
+          "mạng",
+          "offline"
+        ],
+        "framework_steps": [],
+        "retrieved_sources": []
+      },
+      "elapsed_seconds": 6.16,
+      "whitespace_units": 20,
+      "heuristic_checks": {
+        "chưa|không.*thông tin|không.*biết|không.*xác": true
+      },
+      "jargon_hits": []
+    },
+    {
+      "case": "analogy",
+      "question": "Vì sao thẻ truy cập lại hết hạn? Giải thích thật dễ hiểu.",
+      "result": {
+        "key_point": "Thẻ truy cập hết hạn sau 17 phút; tài liệu không nêu lý do, nhưng thường để bảo mật, tránh lạm dụng khi token bị rò rỉ.",
+        "keywords": [
+          "hết hạn",
+          "bảo mật",
+          "token"
+        ],
+        "framework_steps": [],
+        "retrieved_sources": [
+          "[spec.md]"
+        ]
+      },
+      "elapsed_seconds": 5.44,
+      "whitespace_units": 32,
+      "heuristic_checks": {},
+      "jargon_hits": []
+    },
+    {
+      "case": "followup",
+      "question": "Còn dữ liệu chờ xử lý thì sao?",
+      "result": {
+        "key_point": "Dữ liệu chờ xử lý sẽ được lưu trong 9 ngày.",
+        "keywords": [
+          "dữ liệu",
+          "chờ xử lý",
+          "9 ngày"
+        ],
+        "framework_steps": [],
+        "retrieved_sources": [
+          "[spec.md]"
+        ]
+      },
+      "elapsed_seconds": 2.54,
+      "whitespace_units": 18,
+      "heuristic_checks": {
+        "9": true
+      },
+      "jargon_hits": []
+    },
+    {
+      "case": "ambiguous",
+      "question": "Cái đó có nhanh không?",
+      "result": {
+        "key_point": "Tài liệu không cung cấp số đo tốc độ, vì vậy không biết nó có nhanh không.",
+        "keywords": [],
+        "framework_steps": [],
+        "retrieved_sources": [
+          "[spec.md]"
+        ]
+      },
+      "elapsed_seconds": 2.96,
+      "whitespace_units": 17,
+      "heuristic_checks": {
+        "bạn.*(nói|hỏi|muốn)|chưa|không.*(biết|rõ|có)|cụ thể|ý bạn": true
+      },
+      "jargon_hits": []
+    }
+  ]
+}

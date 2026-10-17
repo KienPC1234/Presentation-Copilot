@@ -1,0 +1,13 @@
+{
+  "model": "tiny",
+  "device": "cpu",
+  "fixture": "openai/whisper tests/jfk.flac",
+  "transcript": "And so my fellow Americans ask not what your country can do for you, ask what you can do for your country.",
+  "keyword_checks": {
+    "country": true,
+    "ask": true,
+    "you": true
+  },
+  "elapsed_seconds": 2.07,
+  "scope": "One English fixture; not a Vietnamese accuracy evaluation"
+}

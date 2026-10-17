@@ -1,4 +1,5 @@
 import logging
+from threading import RLock
 from faster_whisper import WhisperModel
 
 from config import settings
@@ -10,6 +11,8 @@ class TranscriberService:
     """Wraps faster-whisper for speech-to-text transcription with language & prompt tuning."""
 
     def __init__(self) -> None:
+        self._config_lock = RLock()
+        self.model_size = settings.whisper_model_size
         self.language: str | None = settings.whisper_language if settings.whisper_language != "auto" else None
         self.initial_prompt: str = settings.whisper_initial_prompt
 
@@ -25,30 +28,40 @@ class TranscriberService:
             device=settings.whisper_device,
             compute_type=settings.whisper_compute_type,
         )
+        self.set_language(settings.whisper_language, settings.whisper_initial_prompt)
         logger.info("Whisper model loaded successfully")
 
     def set_language(self, language: str, initial_prompt: str = "") -> None:
         """Dynamically configure language code (e.g. 'vi', 'en', 'auto') without reloading model."""
-        self.language = None if language.lower() in ("auto", "", "none") else language.lower()
-        if initial_prompt:
+        code = language.strip().lower()
+        code = None if code in ("auto", "", "none") else code
+        if code is not None and code not in self._model.supported_languages:
+            raise ValueError("Language is not supported by the loaded speech model")
+        if len(initial_prompt) > 2000:
+            raise ValueError("Speech prompt must contain at most 2000 characters")
+        with self._config_lock:
+            self.language = code
             self.initial_prompt = initial_prompt
         logger.info("Transcriber language set to '%s' (prompt: %.50s)", self.language or "auto", self.initial_prompt)
 
     def get_config(self) -> dict[str, str | None]:
-        return {
-            "model_size": settings.whisper_model_size,
-            "language": self.language or "auto",
-            "initial_prompt": self.initial_prompt,
-        }
+        with self._config_lock:
+            return {
+                "model_size": self.model_size,
+                "language": self.language or "auto",
+                "initial_prompt": self.initial_prompt,
+            }
 
     def transcribe(self, audio_path: str) -> str:
         """Transcribe audio with custom language targeting and initial vocabulary prompt."""
         logger.debug("Transcribing audio: %s", audio_path)
+        with self._config_lock:
+            language, initial_prompt = self.language, self.initial_prompt
         try:
             segments, info = self._model.transcribe(
                 audio_path,
-                language=self.language,
-                initial_prompt=self.initial_prompt if self.initial_prompt else None,
+                language=language,
+                initial_prompt=initial_prompt or None,
                 language_detection_threshold=0.5,
                 vad_filter=True,
                 vad_parameters={"min_silence_duration_ms": 300},
@@ -68,4 +81,4 @@ class TranscriberService:
 
         except Exception:
             logger.exception("Transcription failed for %s", audio_path)
-            return ""
+            raise RuntimeError("Speech transcription failed") from None

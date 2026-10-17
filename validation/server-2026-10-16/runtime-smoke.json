@@ -1,0 +1,77 @@
+{
+  "model": "gpt-oss:120b-cloud",
+  "fixture": "synthetic",
+  "checks": [
+    "repeated_ingest_no_duplicates",
+    "real_ollama_embeddings_and_chroma_retrieval",
+    "persona_with_literal_braces",
+    "agent_case_0_valid_schema_and_provenance",
+    "agent_case_1_valid_schema_and_provenance",
+    "agent_case_2_valid_schema_and_provenance"
+  ],
+  "answers": [
+    {
+      "question": "For Project Harbor, how long do access tokens last and how long are queue events retained?",
+      "result": {
+        "key_point": "In Project Harbor, API access tokens expire after exactly 17 minutes, and the event queue retains entries for 9 days.",
+        "keywords": [
+          "access token",
+          "expiration",
+          "queue retention",
+          "minutes",
+          "days"
+        ],
+        "framework_steps": [
+          "State the token lifetime: 17 minutes (per project spec).",
+          "State the queue retention period: 9 days (per project spec)."
+        ],
+        "retrieved_sources": [
+          "[harbor.md]"
+        ]
+      },
+      "elapsed_seconds": 1.16
+    },
+    {
+      "question": "What is Project Harbor's measured throughput in requests per second?",
+      "result": {
+        "key_point": "The current documentation does not provide a measured throughput for Project Harbor.",
+        "keywords": [
+          "throughput",
+          "requests per second",
+          "Project Harbor",
+          "benchmark"
+        ],
+        "framework_steps": [
+          "Acknowledge that no throughput benchmark is documented for Project Harbor.",
+          "Explain that without a recorded measurement we cannot quote a requests‑per‑second figure.",
+          "Suggest running a load test (e.g., using a tool like wrk or locust) to capture the actual throughput under realistic conditions."
+        ],
+        "retrieved_sources": [
+          "[harbor.md]"
+        ]
+      },
+      "elapsed_seconds": 1.97
+    },
+    {
+      "question": "Dự án Harbor có thời hạn access token bao lâu? Trả lời bằng tiếng Việt.",
+      "result": {
+        "key_point": "Access token của dự án Harbor có thời hạn 17 phút.",
+        "keywords": [
+          "access token",
+          "expiration",
+          "17 minutes",
+          "Harbor"
+        ],
+        "framework_steps": [
+          "Xem tài liệu cấu hình API của Harbor",
+          "Xác nhận thời gian hết hạn được ghi là 17 phút",
+          "Lưu ý rằng token sẽ hết hiệu lực sau 17 phút và cần làm mới trước thời điểm này"
+        ],
+        "retrieved_sources": [
+          "[harbor.md]"
+        ]
+      },
+      "elapsed_seconds": 1.46
+    }
+  ]
+}

@@ -1,0 +1,56 @@
+{
+  "model": "gpt-oss:120b-cloud",
+  "fixture": "synthetic",
+  "checks": [
+    "repeated_ingest_no_duplicates",
+    "real_ollama_embeddings_and_chroma_retrieval",
+    "persona_with_literal_braces",
+    "agent_case_0_valid_schema_and_provenance",
+    "agent_case_1_valid_schema_and_provenance",
+    "agent_case_2_valid_schema_and_provenance"
+  ],
+  "answers": [
+    {
+      "question": "For Project Harbor, how long do access tokens last and how long are queue events retained?",
+      "result": {
+        "key_point": "Access tokens are valid for exactly 17 minutes, and queue events are kept for 9 days.",
+        "keywords": [
+          "access token",
+          "queue retention"
+        ],
+        "framework_steps": [],
+        "retrieved_sources": [
+          "[harbor.md]"
+        ]
+      },
+      "elapsed_seconds": 2.29
+    },
+    {
+      "question": "What is Project Harbor's measured throughput in requests per second?",
+      "result": {
+        "key_point": "The document does not provide a measured throughput in requests per second.",
+        "keywords": [],
+        "framework_steps": [],
+        "retrieved_sources": [
+          "[harbor.md]"
+        ]
+      },
+      "elapsed_seconds": 2.2
+    },
+    {
+      "question": "Dự án Harbor có thời hạn access token bao lâu? Trả lời bằng tiếng Việt.",
+      "result": {
+        "key_point": "Thời hạn access token là 17 phút.",
+        "keywords": [
+          "access token",
+          "17 phút"
+        ],
+        "framework_steps": [],
+        "retrieved_sources": [
+          "[harbor.md]"
+        ]
+      },
+      "elapsed_seconds": 2.08
+    }
+  ]
+}

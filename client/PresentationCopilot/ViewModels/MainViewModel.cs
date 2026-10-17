@@ -40,6 +40,13 @@ public sealed class MainViewModel : INotifyPropertyChanged
         set => SetField(ref _keywords, value);
     }
 
+    private string _retrievedSources = string.Empty;
+    public string RetrievedSources
+    {
+        get => _retrievedSources;
+        set => SetField(ref _retrievedSources, value);
+    }
+
     private ObservableCollection<string> _frameworkSteps = [];
     public ObservableCollection<string> FrameworkSteps
     {

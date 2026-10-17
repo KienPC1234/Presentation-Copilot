@@ -1,0 +1,21 @@
+{
+  "topic": "FPTEELiterature: học liệu và thi thử cho học sinh, giáo viên, trường học",
+  "recording_kind": "Original Vietnamese human interview about Kyons, questions transferred to FPTEELiterature",
+  "source_page": "https://vietsuccess.asia/podcasts/",
+  "feed": "https://anchor.fm/s/1081bb15c/podcast/rss",
+  "audio_url": "https://anchor.fm/s/1081bb15c/podcast/play/106605494/https%3A%2F%2Fd3ctxlq1ktw2nl.cloudfront.net%2Fstaging%2F2025-7-8%2F405327692-44100-2-58d6e07612092669.mp3",
+  "audio_file": "source.mp3",
+  "audio_sha256": "fcfcc214767d6ba154e7307689d2233f6cb1e9964f2790a5fd71c3a01b2980df",
+  "evidence_file": "project-evidence.md",
+  "clips": [
+    {
+      "id": "vi-product-clarification",
+      "start_seconds": 516,
+      "end_seconds": 540,
+      "asr_keywords": [
+        "phần mềm",
+        "học sinh"
+      ]
+    }
+  ]
+}

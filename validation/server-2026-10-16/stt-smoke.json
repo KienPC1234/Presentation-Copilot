@@ -1,0 +1,9 @@
+{
+  "model": "tiny",
+  "device": "cpu",
+  "input": "2 seconds synthetic silence",
+  "transcript": "",
+  "load_seconds": 13.3,
+  "transcribe_seconds": 0.7,
+  "scope": "No spoken audio accuracy measurement"
+}
