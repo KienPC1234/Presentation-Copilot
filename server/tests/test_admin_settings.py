@@ -16,6 +16,8 @@ def make_settings(tmp: str):
         agent_bash_enabled=False,
         agent_ingest_enabled=False,
         agent_max_iterations=3,
+        live_caption_enabled=False,
+        live_caption_interval_seconds=2.5,
     )
 
 
@@ -27,6 +29,7 @@ class AdminSettingsTests(unittest.TestCase):
             self.assertEqual(data["response_style"], "plain")
             self.assertEqual(data["default_kinds"], list(DOCUMENT_KINDS))
             self.assertFalse(data["agent_bash_enabled"])
+            self.assertFalse(data["live_caption_enabled"])
 
     def test_valid_update_is_persisted_and_reloaded(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -53,6 +56,7 @@ class AdminSettingsTests(unittest.TestCase):
                 {"cleanup_targets": ["everything"]},
                 {"agent_bash_enabled": "yes"},
                 {"agent_max_iterations": 0},
+                {"live_caption_interval_seconds": 99},
                 {"prebuild_topics": ["ab"]},
             ):
                 with self.subTest(payload=payload), self.assertRaises(ValueError):

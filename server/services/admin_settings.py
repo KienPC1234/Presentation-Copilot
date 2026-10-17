@@ -62,6 +62,8 @@ class AdminSettingsStore:
             "agent_bash_enabled": self._settings.agent_bash_enabled,
             "agent_ingest_enabled": self._settings.agent_ingest_enabled,
             "agent_max_iterations": self._settings.agent_max_iterations,
+            "live_caption_enabled": self._settings.live_caption_enabled,
+            "live_caption_interval_seconds": self._settings.live_caption_interval_seconds,
         }
 
     def _load(self) -> None:
@@ -106,13 +108,18 @@ class AdminSettingsStore:
         if not isinstance(retention, int) or isinstance(retention, bool) or not 0 <= retention <= 3650:
             raise ValueError("Retention days must be between 0 and 3650")
 
-        for flag in ("auto_prebuild", "cleanup_on_startup", "agent_bash_enabled", "agent_ingest_enabled"):
+        for flag in ("auto_prebuild", "cleanup_on_startup", "agent_bash_enabled", "agent_ingest_enabled",
+                     "live_caption_enabled"):
             if not isinstance(data.get(flag), bool):
                 raise ValueError(f"{flag} must be a boolean")
 
         iterations = data.get("agent_max_iterations")
         if not isinstance(iterations, int) or isinstance(iterations, bool) or not 1 <= iterations <= 8:
             raise ValueError("Agent max iterations must be between 1 and 8")
+
+        interval = data.get("live_caption_interval_seconds")
+        if not isinstance(interval, (int, float)) or isinstance(interval, bool) or not 0.5 <= float(interval) <= 30:
+            raise ValueError("Live caption interval must be between 0.5 and 30 seconds")
 
         topics = _clean_str_list(data.get("prebuild_topics", []), None, _MAX_PREBUILD_TOPICS)
         for topic in topics:
@@ -132,6 +139,8 @@ class AdminSettingsStore:
             "agent_bash_enabled": data["agent_bash_enabled"],
             "agent_ingest_enabled": data["agent_ingest_enabled"],
             "agent_max_iterations": iterations,
+            "live_caption_enabled": data["live_caption_enabled"],
+            "live_caption_interval_seconds": float(interval),
         }
 
     # ── Public API ─────────────────────────────────────────────────────────

@@ -1,5 +1,13 @@
 # Cập nhật: bảo mật, độ ổn định và kiểm tra logic AI
 
+## Phụ đề trực tiếp (live caption) — 2026-10-17
+
+- Server: khi bật, một task nền mỗi N giây phiên âm cửa sổ trượt rồi đẩy `{"type":"caption","text":…,"final":false}` về client **trong lúc đang nghe**, trước khi bấm phím. Không chạy khi pipeline trigger đang xử lý; chỉ gửi khi có audio mới (≥0,8 s) và transcript đổi (chống nhấp nháy); bỏ qua transcript rỗng hoặc đọc lại prompt.
+- Bật/tắt và chỉnh nhịp trong panel **SERVER ADMIN → Panel defaults** (đã thêm), hoặc `LIVE_CAPTION_ENABLED` / `LIVE_CAPTION_INTERVAL_SECONDS` / `LIVE_CAPTION_WINDOW_SECONDS`. Mặc định **tắt** vì Whisper phải chạy liên tục (tốn GPU).
+- Client: thêm `LiveCaptions` (mặc định bật) — HUD hiện câu hỏi dần khi giám khảo nói; có checkbox trong Settings.
+- Đã chạy thật: stream audio mà **không** bấm trigger → client nhận được caption. **152 test OK** trong container.
+- Thêm `services/live_caption.py` (quyết định có gửi caption hay không) + test riêng.
+
 ## Audit đối kháng + giọng nói — 2026-10-17
 
 - Thêm `scripts/voice_audit.py`: 16 ca gồm 6 nhóm phản biện + prompt injection + đòi bịa số liệu + câu mơ hồ + lệch chủ đề + tiếng Anh; chạy cả chế độ text và chế độ giọng nói tổng hợp espeak (đo WER so với câu gốc). Ghi `results.json`/`summary.md`, có `--generate-audio`.

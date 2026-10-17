@@ -31,6 +31,7 @@ from services.defense_service import DefenseService
 from services.document_service import DocumentService
 from services.document_kinds import DOCUMENT_KINDS, KIND_LABELS, LANGUAGES
 from services import audio_buffer, maintenance, path_browser
+from services.live_caption import should_emit
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -195,6 +196,7 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
     max_pcm_bytes = settings.audio_sample_rate * 2 * settings.max_audio_seconds
     overflow_warned = False
     send_lock = asyncio.Lock()
+    received_bytes = 0
 
     async def send_json(payload: dict[str, Any]) -> None:
         async with send_lock:
@@ -223,6 +225,45 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
         except Exception:
             logger.debug("Could not deliver result for %s (client gone)", request_id)
 
+    async def live_caption_loop() -> None:
+        """Best-effort partial transcript while the client keeps streaming.
+
+        Runs only when enabled (panel/.env) and never at the same time as the
+        triggered pipeline, so it does not compete for the accelerator.
+        """
+        last_bytes = 0
+        previous_text = ""
+        while True:
+            admin = _admin_settings.get()
+            interval = max(0.5, float(admin.get("live_caption_interval_seconds",
+                                               settings.live_caption_interval_seconds)))
+            await asyncio.sleep(interval)
+            if not admin.get("live_caption_enabled", settings.live_caption_enabled):
+                continue
+            if pipeline_task is not None and not pipeline_task.done():
+                continue
+            new_bytes = received_bytes - last_bytes
+            new_seconds = new_bytes / (settings.audio_sample_rate * 2)
+            if not pcm_buffer or new_seconds < 0.8:
+                continue
+            last_bytes = received_bytes
+            window_bytes = settings.audio_sample_rate * 2 * settings.live_caption_window_seconds
+            snapshot = bytes(pcm_buffer[-window_bytes:])
+            try:
+                text = await asyncio.to_thread(_blocking_transcribe, snapshot)
+            except Exception:
+                logger.debug("Live caption transcription failed for %s", session_id, exc_info=True)
+                continue
+            if not should_emit(new_seconds, text, previous_text):
+                continue
+            previous_text = text.strip()
+            try:
+                await send_json({"type": "caption", "text": previous_text, "final": False})
+            except Exception:
+                break
+
+    caption_task = asyncio.create_task(live_caption_loop())
+
     try:
         while True:
             message = await websocket.receive()
@@ -232,6 +273,7 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
             # Binary frame -> Audio PCM
             if "bytes" in message and message["bytes"] is not None:
                 chunk: bytes = message["bytes"]
+                received_bytes += len(chunk)
                 # Continuous streaming: keep a sliding window of the most recent
                 # audio instead of wiping everything, so a long session never
                 # loses the question that was just asked.
@@ -308,6 +350,7 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
         logger.exception("Error in WS handler for %s", session_id)
     finally:
         heartbeat_task.cancel()
+        caption_task.cancel()
         if pipeline_task is not None and not pipeline_task.done():
             pipeline_task.cancel()
         pcm_buffer.clear()
