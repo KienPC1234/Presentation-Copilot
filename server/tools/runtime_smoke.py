@@ -3,6 +3,12 @@
 Run from server/: python runtime_smoke.py --model gpt-oss:120b-cloud
 Cloud models receive only the synthetic fixture in this script.
 """
+
+import sys
+from pathlib import Path as _Path
+
+# Allow running from server/tools/ by putting the server package root on the path.
+sys.path.insert(0, str(_Path(__file__).resolve().parents[1]))
 import argparse
 import json
 import tempfile

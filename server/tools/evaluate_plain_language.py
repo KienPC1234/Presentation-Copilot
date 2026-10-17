@@ -1,4 +1,10 @@
 """Opt-in matched-prompt evaluation with synthetic evidence, not retrieval benchmarking."""
+
+import sys
+from pathlib import Path as _Path
+
+# Allow running from server/tools/ by putting the server package root on the path.
+sys.path.insert(0, str(_Path(__file__).resolve().parents[1]))
 import argparse
 import json
 from pathlib import Path

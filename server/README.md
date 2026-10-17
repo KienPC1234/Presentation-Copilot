@@ -4,6 +4,28 @@ Python WebSocket server that receives PCM audio from a C# client, transcribes it
 
 ---
 
+## Layout
+
+```
+server/
+  main.py            FastAPI app: WebSocket audio pipeline + admin API
+  config.py          environment settings (.env)
+  security.py        access policy shared by HTTP and WebSocket
+  token_store.py     API-token provisioning/rotation
+  ingest.py          CLI for first-time document ingestion
+  services/          RAG, agent, documents, audio, maintenance, transcription
+  web/index.html     remote admin dashboard
+  tests/             unit + API tests (run inside the container)
+  tools/             evaluation, benchmark and smoke scripts
+  data/              runtime state (ChromaDB, exports, models) — gitignored
+  Dockerfile  docker-compose.yml  docker-entrypoint.sh  .env.example
+```
+
+Scripts under `tools/` add the server root to `sys.path` themselves, so run them
+from `server/`: `python tools/benchmark.py --wav clip.wav --runs 3`.
+
+---
+
 ## Prerequisites
 
 | Requirement | Notes |
@@ -367,8 +389,6 @@ crashes, not to judge recognition quality.
 
 
 The professional acceptance goal is active; this branch has not passed acceptance.
-See [the acceptance criteria](../PROFESSIONAL_ACCEPTANCE.md) and
-[the measured report](../PROFESSIONAL_VALIDATION.md).
 
 On 12 original Google FLEURS Vietnamese recordings (5 distinct sentences, 303
 normalized whitespace units), the measured CPU results were:

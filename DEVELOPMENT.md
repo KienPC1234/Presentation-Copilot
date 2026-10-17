@@ -10,7 +10,7 @@ The first reliability and security pass is implemented in the local checkout. Th
 
 ## Remaining work
 
-1. Run an end-to-end session with Ollama and Whisper installed. From `server/`, use `python benchmark.py --wav path/to/question.wav --runs 3` and save the output for the target hardware. The benchmark measures standalone retrieval; retrieval invoked inside the agent is included in `agent_ms`. The live `timings_ms` covers STT and the complete agent.
+1. Run an end-to-end session with Ollama and Whisper installed. From `server/`, use `python tools/benchmark.py --wav path/to/question.wav --runs 3` and save the output for the target hardware. The benchmark measures standalone retrieval; retrieval invoked inside the agent is included in `agent_ms`. The live `timings_ms` covers STT and the complete agent.
 2. Add streaming STT and incremental answer generation. The current `transcript` event is one early result, not token streaming.
 3. Evaluate transcription and answer quality on recorded Vietnamese and English presentation questions. Include expected source passages and mark unsupported claims.
 4. Add document lifecycle controls for removed files, stronger citations within each generated claim, and evidence display in the HUD.

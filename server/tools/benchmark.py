@@ -5,6 +5,12 @@ Examples:
     python benchmark.py --wav question.wav --runs 3
 """
 
+import sys
+from pathlib import Path as _Path
+
+# Allow running from server/tools/ by putting the server package root on the path.
+sys.path.insert(0, str(_Path(__file__).resolve().parents[1]))
+
 import argparse
 import json
 import statistics
