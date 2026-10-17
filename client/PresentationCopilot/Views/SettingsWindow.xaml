@@ -85,6 +85,9 @@
         <!-- Streaming -->
         <CheckBox x:Name="ChkStream" Content="Stream microphone/system audio continuously"/>
 
+        <!-- Live captions -->
+        <CheckBox x:Name="ChkLiveCaptions" Content="Show live captions while listening"/>
+
         <!-- Opacity -->
         <Label Content="HUD Opacity"/>
         <StackPanel Orientation="Horizontal">

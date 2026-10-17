@@ -23,4 +23,8 @@ public sealed class AppConfig
     /// <summary>Stream loopback audio to the server continuously instead of only
     /// when the hotkey is pressed. Keeps the server's sliding window current.</summary>
     public bool StreamContinuously { get; set; } = true;
+
+    /// <summary>Show the server's live captions on the HUD while audio is being
+    /// streamed, so the question appears as it is being asked.</summary>
+    public bool LiveCaptions { get; set; } = true;
 }

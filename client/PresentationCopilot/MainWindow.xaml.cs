@@ -294,6 +294,19 @@ public partial class MainWindow : Window
             string? type = typeProp.GetString();
             if (type == "ping" || type == "cleared") return;
 
+            // Live caption: partial transcript pushed while the client streams.
+            // Show the question forming before the hotkey is pressed.
+            if (type == "caption")
+            {
+                if (!_config.LiveCaptions) return;
+                string caption = root.TryGetProperty("text", out var captionProp)
+                    ? captionProp.GetString() ?? "" : "";
+                if (string.IsNullOrWhiteSpace(caption)) return;
+                _viewModel.QuestionText = caption;
+                _hudWindow?.ShowWithFade();
+                return;
+            }
+
             string? requestId = root.TryGetProperty("request_id", out var idProp) ? idProp.GetString() : null;
             if (type == "error" && requestId == null)
             {

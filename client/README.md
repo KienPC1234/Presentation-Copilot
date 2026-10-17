@@ -51,6 +51,7 @@ Edit `PresentationCopilot/appsettings.json` before building:
 | `PresentationTopic` | Optional product/topic name sent once so retrieval is anchored |
 | `AudioBufferSeconds` | Seconds analysed on each hotkey press (5–90) |
 | `StreamContinuously` | Stream audio while connected so the server always holds the recent question |
+| `LiveCaptions` | Show the server's partial transcript (`caption`) on the HUD while listening |
 
 You can also set these from the tray icon → **Settings…**, which saves to `%LOCALAPPDATA%/PresentationCopilot/appsettings.json`. The token is stored there as plain text; keep that file private.
 
@@ -98,8 +99,9 @@ MainWindow (tray host)
 
 1. System audio is continuously captured and converted to 16 kHz mono PCM into a local ring buffer.
 2. When `StreamContinuously` is on (default), the PCM is also streamed to the server as binary WebSocket frames, so the server's rolling window always holds the recent audio. Frames are dropped (never queued without bound) if the socket backs up.
-3. **Hotkey pressed** → the client sends `{"type":"trigger","request_id":"…","seconds":N}`; the server analyses the last N seconds of its window and clears it, so an earlier question cannot leak into this answer. With streaming off, the client first sends the last N seconds of its local ring buffer.
-4. Python server processes audio → returns JSON:
+3. If the server has **live captions** enabled, it periodically transcribes the recent window and pushes `{"type":"caption","text":"…","final":false}`. With `LiveCaptions` on (default) the HUD shows the question forming as the judge speaks.
+4. **Hotkey pressed** → the client sends `{"type":"trigger","request_id":"…","seconds":N}`; the server analyses the last N seconds of its window and clears it, so an earlier question cannot leak into this answer. With streaming off, the client first sends the last N seconds of its local ring buffer.
+5. Python server processes audio → returns JSON:
    ```json
    {
      "key_point": "Explain the architecture clearly",

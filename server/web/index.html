@@ -543,6 +543,10 @@
                     <label class="flex items-center gap-2">Export retention (days)
                         <input type="number" id="adminRetention" min="0" max="3650" class="w-20 bg-darkbg border border-bordercolor rounded px-2 py-1">
                     </label>
+                    <label class="flex items-center gap-2"><input type="checkbox" id="adminLiveCaption" class="accent-blue-500"> Phụ đề trực tiếp khi đang nghe</label>
+                    <label class="flex items-center gap-2">Nhịp phụ đề (giây)
+                        <input type="number" id="adminCaptionInterval" min="0.5" max="30" step="0.5" class="w-20 bg-darkbg border border-bordercolor rounded px-2 py-1">
+                    </label>
                 </div>
                 <div class="flex items-center gap-3">
                     <button onclick="saveAdminSettings()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs">💾 Save defaults</button>
@@ -1101,6 +1105,8 @@
                 document.getElementById('adminAutoPrebuild').checked = s.auto_prebuild;
                 document.getElementById('adminCleanupStartup').checked = s.cleanup_on_startup;
                 document.getElementById('adminRetention').value = s.export_retention_days;
+                document.getElementById('adminLiveCaption').checked = s.live_caption_enabled;
+                document.getElementById('adminCaptionInterval').value = s.live_caption_interval_seconds;
             } catch (err) { console.error(err); }
         }
 
@@ -1114,6 +1120,8 @@
                 auto_prebuild: document.getElementById('adminAutoPrebuild').checked,
                 cleanup_on_startup: document.getElementById('adminCleanupStartup').checked,
                 export_retention_days: Number(document.getElementById('adminRetention').value),
+                live_caption_enabled: document.getElementById('adminLiveCaption').checked,
+                live_caption_interval_seconds: Number(document.getElementById('adminCaptionInterval').value),
             };
             try {
                 const res = await apiFetch('/api/admin/settings', {

@@ -325,6 +325,7 @@ On `trigger` the server takes the last `seconds` of that window, transcribes it,
 |---|---|---|
 | `"processing"` | `request_id` | Sent immediately after trigger |
 | `"transcript"` | `request_id`, `transcript`, `stt_ms` | Sent after STT, before agent completion |
+| `"caption"` | `text`, `final` | Partial transcript pushed while streaming, when live captions are enabled |
 | `"suggestion"` | `request_id`, `transcript`, `key_point`, `keywords`, `framework_steps`, `retrieved_sources`, `timings_ms` | Full pipeline result |
 | `"error"` | `message` | Error detail |
 | `"ping"` | — | Heartbeat every 30 s |

@@ -72,6 +72,13 @@ class Settings(BaseSettings):
     # Opus with ffmpeg (compact); the server falls back to "wav" automatically.
     transcription_audio_format: Literal["m4a", "ogg", "wav"] = "m4a"
 
+    # Live captions: while the client streams audio, periodically transcribe the
+    # rolling window and push partial text so the HUD can show the question as it
+    # is being asked, before the hotkey is pressed. Uses the accelerator.
+    live_caption_enabled: bool = False
+    live_caption_interval_seconds: float = Field(default=2.5, ge=0.5, le=30)
+    live_caption_window_seconds: int = Field(default=12, ge=3, le=60)
+
     # Logging
     log_level: str = "INFO"
 
