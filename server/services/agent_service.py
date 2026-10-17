@@ -260,7 +260,7 @@ class AgentService:
             if technical:
                 # Retrieve per requested part without spending extra LLM/tool
                 # loops to rediscover evidence already in the local corpus.
-                for part in requirements[:3]:
+                for part in requirements:
                     query = f"{topic}: {part['request']}" if topic else part["request"]
                     chunks.extend(filter_evidence(self._rag.query(query, top_k=2)))
                 chunks = list(dict.fromkeys(chunks))

@@ -84,6 +84,34 @@ class AgentContractTests(unittest.TestCase):
         self.assertIn("investors", payload["presentation_persona"])
         self.agent._executor.invoke.assert_not_called()
 
+    def test_evidence_for_last_of_eight_parts_reaches_composer_and_reviewer(self):
+        parts = [f"Requirement {i}" for i in range(1, 9)]
+        self.agent._plan_llm.invoke.return_value.content = json.dumps({"requirements": parts, "tools": []})
+        self.agent._rag.query.side_effect = lambda query, **kw: ["[last.md] unique final requirement evidence"] if query == parts[-1] else []
+        with patch.object(self.module, "review_grounding", return_value=[]) as reviewer:
+            result = self.agent.run("Answer all eight parts", self.ctx, include_evidence=True)
+        self.assertNotIn("error", result)
+        queries = [call.args[0] for call in self.agent._rag.query.call_args_list]
+        self.assertEqual(queries[1:], parts)
+        payload = json.loads(self.module.HumanMessage.call_args.kwargs["content"])
+        self.assertEqual(payload["evidence"], ["[last.md] unique final requirement evidence"])
+        self.assertEqual(reviewer.call_args.args[3], payload["evidence"])
+        self.assertEqual(result["retrieved_chunks"], payload["evidence"])
+
+    def test_retrieval_failure_in_last_part_prevents_partial_answer_and_memory(self):
+        parts = [f"Requirement {i}" for i in range(1, 9)]
+        self.agent._plan_llm.invoke.return_value.content = json.dumps({"requirements": parts, "tools": []})
+        def query(value, **kwargs):
+            if value == parts[-1]:
+                raise RuntimeError("RAG unavailable")
+            return ["[partial.md] earlier evidence"]
+        self.agent._rag.query.side_effect = query
+        with self.assertLogs(self.module.logger, level="ERROR"):
+            result = self.agent.run("Answer all eight parts", self.ctx)
+        self.assertIn("error", result)
+        self.agent._plain_llm.invoke.assert_not_called()
+        self.assertEqual(self.ctx.get_history(), [])
+
     def test_invalid_question_plan_prevents_generation_and_memory(self):
         self.agent._plan_llm.invoke.return_value.content = '{"requirements":[]}'
         with self.assertLogs(self.module.logger, level="ERROR"):

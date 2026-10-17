@@ -1,5 +1,11 @@
 # Cập nhật: bảo mật, độ ổn định và kiểm tra logic AI
 
+## Bao quát tám yêu cầu và tải audio TCP thật — 2026-10-17
+
+- Sửa truy xuất riêng từng yêu cầu từ tối đa ba phần thành toàn bộ tối đa tám phần. 120 regression test qua; lỗi truy xuất phần cuối không được biến thành câu trả lời thiếu bằng chứng.
+- Thêm runner WebSocket loopback với STT/RAG/LLM thật. Tám kết nối phát đồng thời một đoạn podcast người thật: 7/8 gợi ý, ID đúng, context dọn hết, p95 173,595 giây; không đạt mục tiêu 60 giây.
+- Chưa đo đa giọng, WER của đoạn podcast, độ đúng nội dung hoặc hội trường. Còn lỗi giao thức review. Goal chưa hoàn tất; báo cáo: NETWORK_AUDIO_VALIDATION.md.
+
 ## Giữ điều kiện trong kết luận và đính chính báo cáo — 2026-10-17
 
 - Tăng kiểm tra kết luận đầu câu về công thức/điều kiện; thêm phản ví dụ đúng và sai. Sửa chặn ngưỡng phần trăm để số trần trong mã không biến thành nguồn cho SLA.

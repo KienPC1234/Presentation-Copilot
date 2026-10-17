@@ -1,0 +1,183 @@
+{
+  "scope": "Real loopback TCP/WebSocket audio load, with real STT/RAG/LLM services.\n\nRepeating one public human clip measures contention, not acoustic diversity,\nsemantic accuracy, remote-network performance or cross-talk resistance.\nAll output is allowlisted metadata; server logs can contain private transcripts.\n",
+  "sessions": 8,
+  "runs": 1,
+  "whisper": "medium",
+  "model": "gpt-oss:120b-cloud",
+  "answer_model": "gemma4:31b-cloud",
+  "review_model": "gemma4:31b-cloud",
+  "style": "technical",
+  "transport": "loopback TCP WebSocket",
+  "audio_sha256": "fcfcc214767d6ba154e7307689d2233f6cb1e9964f2790a5fd71c3a01b2980df",
+  "clip_start_seconds": 516,
+  "clip_duration_seconds": 24.0,
+  "evidence_sha256": "dec463ad64f894f46c12a680c47abbfed23a8d153f398bfcbf54c8a192f20199",
+  "checks": [
+    {
+      "run": 1,
+      "check": "distinct_active_contexts",
+      "passed": true
+    },
+    {
+      "run": 1,
+      "check": "contexts_removed_after_disconnect",
+      "passed": true
+    }
+  ],
+  "results": [
+    {
+      "run": 1,
+      "client": 0,
+      "seconds": 114.432,
+      "event_types": [
+        "processing",
+        "transcript",
+        "suggestion"
+      ],
+      "request_ids_match": true,
+      "execution_passed": true,
+      "transcript_sha256": "d1c5bf59928daa8b7d1fc1f155053dab03d0f8207c21551acc772c86263a0178",
+      "transcript_units": 94,
+      "server_timings_ms": {
+        "stt": 101787,
+        "agent": 12032,
+        "total": 113819
+      }
+    },
+    {
+      "run": 1,
+      "client": 1,
+      "seconds": 88.5,
+      "event_types": [
+        "processing",
+        "transcript",
+        "suggestion"
+      ],
+      "request_ids_match": true,
+      "execution_passed": true,
+      "transcript_sha256": "d1c5bf59928daa8b7d1fc1f155053dab03d0f8207c21551acc772c86263a0178",
+      "transcript_units": 94,
+      "server_timings_ms": {
+        "stt": 76067,
+        "agent": 11887,
+        "total": 87954
+      }
+    },
+    {
+      "run": 1,
+      "client": 2,
+      "seconds": 99.434,
+      "event_types": [
+        "processing",
+        "transcript",
+        "suggestion"
+      ],
+      "request_ids_match": true,
+      "execution_passed": true,
+      "transcript_sha256": "d1c5bf59928daa8b7d1fc1f155053dab03d0f8207c21551acc772c86263a0178",
+      "transcript_units": 94,
+      "server_timings_ms": {
+        "stt": 88774,
+        "agent": 10187,
+        "total": 98961
+      }
+    },
+    {
+      "run": 1,
+      "client": 3,
+      "seconds": 88.202,
+      "event_types": [
+        "processing",
+        "transcript",
+        "error"
+      ],
+      "request_ids_match": true,
+      "execution_passed": false,
+      "transcript_sha256": "d1c5bf59928daa8b7d1fc1f155053dab03d0f8207c21551acc772c86263a0178",
+      "transcript_units": 94,
+      "server_timings_ms": {}
+    },
+    {
+      "run": 1,
+      "client": 4,
+      "seconds": 138.775,
+      "event_types": [
+        "processing",
+        "transcript",
+        "suggestion"
+      ],
+      "request_ids_match": true,
+      "execution_passed": true,
+      "transcript_sha256": "d1c5bf59928daa8b7d1fc1f155053dab03d0f8207c21551acc772c86263a0178",
+      "transcript_units": 94,
+      "server_timings_ms": {
+        "stt": 127184,
+        "agent": 11255,
+        "total": 138439
+      }
+    },
+    {
+      "run": 1,
+      "client": 5,
+      "seconds": 173.595,
+      "event_types": [
+        "processing",
+        "transcript",
+        "suggestion"
+      ],
+      "request_ids_match": true,
+      "execution_passed": true,
+      "transcript_sha256": "d1c5bf59928daa8b7d1fc1f155053dab03d0f8207c21551acc772c86263a0178",
+      "transcript_units": 94,
+      "server_timings_ms": {
+        "stt": 153090,
+        "agent": 20237,
+        "total": 173327
+      }
+    },
+    {
+      "run": 1,
+      "client": 6,
+      "seconds": 151.039,
+      "event_types": [
+        "processing",
+        "transcript",
+        "suggestion"
+      ],
+      "request_ids_match": true,
+      "execution_passed": true,
+      "transcript_sha256": "d1c5bf59928daa8b7d1fc1f155053dab03d0f8207c21551acc772c86263a0178",
+      "transcript_units": 94,
+      "server_timings_ms": {
+        "stt": 140139,
+        "agent": 10700,
+        "total": 150839
+      }
+    },
+    {
+      "run": 1,
+      "client": 7,
+      "seconds": 124.429,
+      "event_types": [
+        "processing",
+        "transcript",
+        "suggestion"
+      ],
+      "request_ids_match": true,
+      "execution_passed": true,
+      "transcript_sha256": "d1c5bf59928daa8b7d1fc1f155053dab03d0f8207c21551acc772c86263a0178",
+      "transcript_units": 94,
+      "server_timings_ms": {
+        "stt": 114558,
+        "agent": 9738,
+        "total": 124296
+      }
+    }
+  ],
+  "execution_passed": false,
+  "all_requests_p95_seconds": 173.595,
+  "audio_latency_gate_passed": false,
+  "semantic_acceptance": "not evaluated",
+  "reference_transcript": "not supplied; no WER claim",
+  "isolation_limit": "Checks request IDs and context count/cleanup; repeated audio cannot establish semantic cross-session isolation."
+}
