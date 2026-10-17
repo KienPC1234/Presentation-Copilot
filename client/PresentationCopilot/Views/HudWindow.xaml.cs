@@ -38,6 +38,7 @@ public partial class HudWindow : Window
 
     private readonly MainViewModel _viewModel;
     private bool _isClickThrough;
+    private int HideFadeToken;
 
     public HudWindow(MainViewModel viewModel)
     {
@@ -171,6 +172,7 @@ public partial class HudWindow : Window
     /// <summary>Slides the HUD into view with a smooth fade-in.</summary>
     public void ShowWithFade()
     {
+        HideFadeToken++;              // cancel a pending hide's Completed callback
         Opacity = 0;
         Show();
         var anim = new System.Windows.Media.Animation.DoubleAnimation(
@@ -182,10 +184,15 @@ public partial class HudWindow : Window
     /// <summary>Fades the HUD out then hides it.</summary>
     public void HideWithFade()
     {
+        int token = ++HideFadeToken;
         var anim = new System.Windows.Media.Animation.DoubleAnimation(
             Opacity, 0,
             new System.Windows.Duration(TimeSpan.FromMilliseconds(150)));
-        anim.Completed += (_, _) => Hide();
+        anim.Completed += (_, _) =>
+        {
+            // Only hide if no newer show/hide started in the meantime.
+            if (token == HideFadeToken) Hide();
+        };
         BeginAnimation(OpacityProperty, anim);
     }
 }

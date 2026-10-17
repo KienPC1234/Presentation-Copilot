@@ -1,5 +1,59 @@
 # Cập nhật: bảo mật, độ ổn định và kiểm tra logic AI
 
+## Audit đối kháng + giọng nói — 2026-10-17
+
+- Thêm `scripts/voice_audit.py`: 16 ca gồm 6 nhóm phản biện + prompt injection + đòi bịa số liệu + câu mơ hồ + lệch chủ đề + tiếng Anh; chạy cả chế độ text và chế độ giọng nói tổng hợp espeak (đo WER so với câu gốc). Ghi `results.json`/`summary.md`, có `--generate-audio`.
+- Kết quả chạy thật (máy GPU, dự án ShieldCall VN, LLM cloud): phần lớn câu trả lời **có căn cứ và trung thực** — tự nói "tài liệu không nêu" cho chi phí/số người dùng/Truecaller/container escape; từ chối in system prompt; từ chối bịa p99; từ chối trả lời thời tiết. WER giọng espeak ~0.65–1.6 nên nhận dạng méo nặng (giới hạn của TTS robot, không phải lỗi đường truyền).
+- **Bug thật tìm được nhờ audit**: `answer_review` từ chối nhầm hai loại câu trả lời ĐÚNG, khiến 4/16 ca trả về "Không thể tạo câu trả lời":
+  1. Câu mơ hồ ("Cái đó chạy như thế nào?") — hỏi lại một câu ngắn là đúng, nhưng reviewer đòi phải giải thích → `missing_part`.
+  2. Câu so sánh với sản phẩm ngoài tài liệu (Truecaller/Google Safe Browsing) — trả lời "tài liệu không nêu" là đúng, nhưng reviewer đòi so sánh bằng kiến thức chung → `missing_part`.
+  3. Phần còn lại là **không tất định**: cùng câu hỏi lúc lỗi lúc qua (reviewer là LLM cloud).
+- Đã sửa: thêm 2 quy tắc vào `REVIEW_PROMPT` (chấp nhận hỏi lại khi câu mơ hồ; chấp nhận "tài liệu không nêu" khi câu hỏi đòi so sánh với thứ ngoài bằng chứng), và đổi sửa lỗi thành vòng lặp có giới hạn `AGENT_MAX_REPAIRS` (mặc định 2) thay vì sửa 1 lần rồi bỏ. Vẫn từ chối nếu còn lỗi sau khi sửa (không hiển thị câu chưa đạt).
+- Đã cập nhật test `test_agent_contract` cho hành vi mới (126 test host, 3 lỗi import do thiếu phụ thuộc).
+- **Mở rộng audit lên 34 ca** (thêm 18 ca thực tế/hiểm: giám khảo gay gắt, tiền đề sai về tech stack, tin đồn bị hack, đòi bảo đảm 100%, câu ghép, câu cụt, áp lực cảm xúc đòi số bịa, hỏi tính năng không tồn tại, Nghị định 13, injection trong tài liệu trích dẫn, "developer mode", "Tại sao?"). **Kết quả cuối: 34/34 kỳ vọng đạt**, latency trung vị 5,6 s. Artifact: `validation/audit-2026-10-17/`.
+- **Bug thứ 5 do audit tìm được**: câu hỏi cụt không có ngữ cảnh ("Tại sao?") bị model **gán bừa vào đoạn tài liệu đầu tiên** rồi trả lời sai trọng tâm (thay vì hỏi lại). Đã sửa tất định: `needs_clarification()` + `clarification_answer()` trong `agent_service` — câu hỏi trống ngữ cảnh dạng đại từ/bare-interrogative được trả lời bằng một câu hỏi lại ngắn (kèm test), không phụ thuộc model.
+- **Bug thứ 6 do audit tìm được**: reviewer có lúc **tự mâu thuẫn** — gán `unsupported_claim` nhưng ngay trong chi tiết lại ghi "The evidence supports this: README.md says…". Đã thêm quy tắc vào `REVIEW_PROMPT` (không gán unsupported_claim khi bằng chứng có hỗ trợ) và một bộ lọc hẹp `drop_self_contradictory()` loại đúng những issue tự mâu thuẫn (kèm test). Vẫn giữ nguyên tắc an toàn: sau khi sửa mà còn lỗi thì **từ chối trả lời**, không hiển thị câu chưa đạt.
+- Tăng `AGENT_MAX_REPAIRS` mặc định 2 → 3 để bù tính không tất định của reviewer. Giới hạn còn lại: khoảng 1/34 ca vẫn có thể bị reviewer từ chối thoáng qua (cùng câu lúc lỗi lúc qua); hệ thống **từ chối trả lời** thay vì đưa câu sai — bấm lại phím là được.
+- Sau khi sửa, chấm lại bộ ca text: **16/16 kỳ vọng đạt** (bản chấm cũ tự báo sai 3 ca vì bắt chữ "system prompt" trong câu từ chối, thiếu mẫu từ chối tiếng Anh, và kỳ vọng sai ở ca tài liệu thật sự có số liệu). Artifact: `validation/audit-2026-10-17/`.
+- **Bug hạ tầng tìm được khi chạy giọng nói**: một lần container báo `CUDA failed ... no CUDA-capable device` (NVML lỗi thoáng qua sau vài lần tạo lại container) → mọi câu đều "Internal pipeline error". Tạo lại container thì hết (transient), nhưng đã thêm **fallback CPU** trong `TranscriberService.ensure_loaded` để GPU trục trặc thì vẫn nhận dạng được (chậm hơn), kèm `whisper_device` trong `/health`. Thêm test `test_transcriber_fallback`.
+- **Bug nhận dạng quan trọng tìm được khi chạy giọng nói**: với audio không rõ, Whisper **đọc lại chính câu prompt gợi ý từ vựng** làm transcript (ví dụ "Thuyết bảo vệ dự án, phần mềm, công nghệ, kiến trúc..."), rồi engine tưởng đó là câu hỏi — đúng kiểu "lấy sai câu". Đã thêm `_echoes_prompt()`: nếu transcript chỉ là prompt đọc lại (≥80% token nằm trong prompt) thì coi như "không có tiếng nói" và bỏ. Thêm test.
+
+## Chạy thật trên máy GPU và LLM cloud — 2026-10-17
+
+Đã build và chạy thật trên máy này (Ubuntu 26.04, NVIDIA RTX 4070 SUPER 12GB, driver 615.71):
+
+- Docker GPU: cài NVIDIA Container Toolkit; `docker run --gpus all nvidia-smi` thấy GPU; image dự án cài `nvidia-cublas-cu12`/`nvidia-cudnn-cu12`, container thấy `/dev/nvidia*` và `ctranslate2.get_cuda_device_count() == 1`.
+- Whisper trên GPU: nạp model `cuda/float16` qua `/api/config/warmup` (tiny 13s, small 53s gồm tải). Cùng clip 3,7 giây: CPU tiny 14.763 ms so với GPU tiny 1.249 ms (~12 lần), GPU small 976 ms. Tổng một câu hỏi thật 6,5 giây (LLM cloud chiếm 5,5 giây).
+- LLM cloud: `deepseek-v4.1-flash:cloud` chạy qua Ollama daemon của máy (không suy luận local). `/api/simulate` trả 200 với câu trả lời có căn cứ, trích `[document_service.py]`, `[response_style.py]`, `review_status: model_reviewed`.
+- RAG trong Docker: `verify-path` `/host/server/services` 25 tệp, `ingest` 172 chunk, sinh bộ tài liệu markdown (qa/rebuttal/evidence) thành công và gọi lại thì `cached: true`.
+- Bảo mật: thiếu API key trả 401; bash tool chặn `/etc/passwd` nhưng cho URL; `/host` chỉ đọc; `/etc` bị từ chối khi duyệt.
+- Dịch vụ local: `host.docker.internal` → `172.17.0.1`; dịch vụ bind `0.0.0.0` vào được (HTTP 200), còn Ollama bind `127.0.0.1` thì bị từ chối. Đã thêm unit systemd `ollama-docker-bridge` dùng socat bind `172.17.0.1:11435` → `127.0.0.1:11434` để container nối Ollama mà không mở ra LAN.
+- Tailscale: đặt `BIND_ADDRESS=100.115.199.119` (IP Tailscale của máy) để publish panel/WebSocket lên tailnet; kiểm tra `http://100.115.199.119:8765/health` trả 200, thiếu key 401, đúng key 200. README ghi rõ giữ `API_TOKEN` và không mở ra Internet.
+- Chuẩn bị cho dự án `/data/Sentinel_Team_Project`: `HOST_DOCS_ROOT=/data/Sentinel_Team_Project` (mount chỉ đọc tại `/host`); panel duyệt thấy `backend/`, `frontend/`, `docs/`, `_minhchung/`; `verify-path` báo 526 tệp chỉ mục được (bỏ qua `.venv*`, `node_modules`, `dist`, `build`).
+- Lỗi phát hiện khi chạy thật: service `ollama` publish cổng 11434 đụng Ollama sẵn có trên máy → bỏ publish (container vào qua network `ollama:11434`); thêm volume cache HuggingFace `./data/hf-cache` để không tải lại model mỗi lần tạo container; Whisper nạp model lần đầu chỉ tải một lần.
+- Lỗi phát hiện khi chạy full test **trong container** (137→138 test, OK): khi đã đặt `API_TOKEN`, `TokenStore` vẫn sinh thêm `data/.api-token`, và tệp đó lọt vào nhánh xác thực dự phòng khiến các test giả lập `api_token=""` bị 401. Đã sửa: khi có token từ môi trường thì không sinh tệp; `rotate()` cũng không ghi tệp khi đã có token môi trường (tránh tệp thừa mâu thuẫn). Test rotate nay dùng đường dẫn tạm. Chạy full suite trong image cuối **2 lần liên tiếp: 139 test OK** (1 skip do có ffmpeg), không còn rác.
+- Lỗi phát hiện khi tạo bộ tài liệu cho ShieldCall VN: `num_predict=4096` quá nhỏ nên JSON của pack bị cắt (`done_reason=length`) → mất `rebuttal`/`outline`/`cheatsheet` (trạng thái `partial`). Đã sửa: thêm `LLM_MAX_OUTPUT_TOKENS` và `DOCUMENT_MAX_OUTPUT_TOKENS` (16384), nâng giới hạn `parse_json_object` cho pack lên 200k ký tự, và **gọi lại từng phần còn thiếu** thay vì bỏ. Tạo lại bộ ShieldCall VN: `status: success`, đủ 5 loại tài liệu.
+
+## Luồng audio liên tục, Opus và cấu hình client — 2026-10-17
+
+- Client Windows: thêm ô **API Key** và **Presentation Topic** trong Settings (lưu cùng appsettings), tự gửi `set_topic` khi kết nối lại để neo ngữ cảnh. `StreamContinuously` (mặc định bật) gửi PCM liên tục về server, có ngưỡng backlog để không phình bộ nhớ; khi tắt thì giữ hành vi cũ (gửi N giây rồi mới trigger).
+- Hotkey giờ gửi `{"type":"trigger","request_id":...,"seconds":N}`: server phân tích đúng N giây gần nhất và xoá buffer sau đó, nên câu hỏi cũ không lẫn vào câu trả lời mới.
+- Server WebSocket: đổi sang cửa sổ trượt — khi vượt `MAX_AUDIO_SECONDS` thì bỏ audio cũ nhất thay vì xoá sạch rồi báo lỗi; logic tách ra `services/audio_buffer.py` và có kiểm thử riêng.
+- Định dạng tệp tạm cho Whisper: mặc định **M4A (Opus)** qua ffmpeg (`TRANSCRIPTION_AUDIO_FORMAT=m4a|ogg|wav`, đổi được trong tab Engine Metrics). Nếu ffmpeg/Opus lỗi thì tự thử lại bằng WAV nên không bao giờ chặn nhận dạng.
+- Whisper nạp **lazy** thay vì lúc khởi động (trước đây tải model ngay, Docker có thể chết nếu mạng lỗi); thêm `POST /api/config/warmup` và hiển thị trạng thái model trong panel để nạp trước.
+- Giữ PCM thô trên WebSocket thay vì nén Opus khi truyền: server thường chạy nội bộ/LAN nên 32 KB/s không phải nút cổ chai, còn nén thêm sẽ tăng độ trễ và thêm phụ thuộc codec; đây là lựa chọn tối ưu cho độ trễ. Nếu triển khai qua Internet, có thể bật Opus trên đường truyền sau.
+
+## Máy chủ Docker, bảng quản trị từ xa và tài liệu markdown — 2026-10-17
+
+- Docker server có ba điểm gắn: thư mục máy chủ chỉ đọc tại `/host` (`HOST_DOCS_ROOT`), dữ liệu ghi được tại `/app/data`, và thư mục xuất markdown riêng (`EXPORT_HOST_DIR`). Entrypoint tự sinh `API_TOKEN` khi chưa có và ghi vào `data/.api-token`; giá trị trong `.env` luôn được ưu tiên. Thêm `scripts/bootstrap_env.py` để tạo khoá ngoài Docker, và `docker-entrypoint.sh`, `.dockerignore`, `HEALTHCHECK`.
+- Hỗ trợ GPU: image cài sẵn CUDA runtime/cuBLAS/cuDNN (`requirements-gpu.txt`, build arg `INSTALL_CUDA`), cả hai service yêu cầu `gpus: all`, Whisper mặc định `cuda`/`float16`/`small`. Cần NVIDIA Container Toolkit trên máy chủ. Máy CPU đặt `INSTALL_CUDA=false`, `WHISPER_DEVICE=cpu`, `WHISPER_COMPUTE_TYPE=int8` và bỏ `gpus:`.
+- Nối dịch vụ local: thêm `host.docker.internal:host-gateway` và biến `OLLAMA_URL` để trỏ tới Ollama chạy trực tiếp trên máy (`http://host.docker.internal:11434`) mà không đụng `OLLAMA_BASE_URL` dùng cho chạy local.
+- Bảng quản trị từ xa (dashboard) thêm: duyệt thư mục trên máy chủ (`/api/fs/roots`, `/api/fs/list`) giới hạn trong các root cấu hình; xoay khoá API (`/api/admin/token/rotate`); bật/tắt công cụ agent; đặt mặc định panel và đề tài tạo trước; dọn rác và xem dung lượng (`/api/maintenance/*`).
+- Tính năng AI tạo tệp markdown: bộ câu hỏi, kịch bản phản biện, dàn ý trình bày, phiếu nhắc nhanh và phụ lục bằng chứng, kèm `defense-pack.md` và `manifest.json`. Cache theo hash nội dung và dấu vân tay chỉ mục nên lần sau không gọi model; `/api/documents/prebuild` tạo trước theo danh sách đề tài. Mọi tệp ghi rõ là tài liệu AI chuẩn bị, giữ mã bằng chứng và không coi là số liệu đã đo.
+- Thêm lại công cụ cho agent theo hướng chuẩn vòng lặp tool call: `ingest_documents` và `bash` (mặc định TẮT). Bash bị giới hạn bằng thời gian chờ, giới hạn đầu ra, danh sách lệnh cấm và chỉ cho phép đường dẫn tuyệt đối nằm trong root. Đây KHÔNG phải sandbox: khi bật, model chạy được mọi thứ tiến trình server làm được — chỉ bật khi mọi người gọi server đều đáng tin.
+- Dọn rác: `CLEANUP_ON_STARTUP` xoá tệp audio tạm (giữ nguyên marker khôi phục chỉ mục), panel dọn tệp cũ và log theo số ngày lưu; `scripts/cleanup.sh` và `scripts/cleanup.ps1` dọn cache Python/.NET, media lẫn và tùy chọn prune Docker.
+- Thêm kiểm thử cho token store, duyệt đường dẫn, cài đặt panel, dọn rác, công cụ bash, kiểm tra tài liệu và dịch vụ tài liệu. Chưa chạy với Ollama/Whisper/Chroma thật trong môi trường này; các kiểm thử đó sẽ chạy khi đủ phụ thuộc.
+
 ## Goal professional và vòng nghiệm thu — 2026-10-17
 
 - Goal đang hoạt động, chưa đánh dấu nghiệm thu. Tiêu chí: PROFESSIONAL_ACCEPTANCE.md; kết quả và giới hạn: PROFESSIONAL_VALIDATION.md.

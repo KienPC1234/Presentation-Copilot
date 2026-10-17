@@ -1,0 +1,9 @@
+# CUDA libraries for GPU transcription (NVIDIA). Installed only when the image
+# is built with --build-arg INSTALL_CUDA=true, which docker-compose.yml does by
+# default. Without a GPU the server runs on CPU and these are unnecessary.
+#
+# ctranslate2 (used by faster-whisper) needs cuBLAS 12 and cuDNN 9 for CUDA 12.
+# The Dockerfile adds their lib directories to LD_LIBRARY_PATH.
+nvidia-cuda-runtime-cu12>=12.4,<13
+nvidia-cublas-cu12>=12.4,<13
+nvidia-cudnn-cu12>=9.1,<10

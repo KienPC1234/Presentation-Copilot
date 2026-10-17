@@ -22,7 +22,7 @@ public sealed class WebSocketService : IAsyncDisposable
 
     public bool IsConnected => _client?.IsRunning ?? false;
 
-    public async Task ConnectAsync(string serverUri, CancellationToken cancellationToken = default)
+    public async Task ConnectAsync(string serverUri, string apiToken = "", CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
@@ -38,13 +38,15 @@ public sealed class WebSocketService : IAsyncDisposable
             serverUri = serverUri.TrimEnd('/') + "/ws";
         }
         var uri = new Uri(serverUri);
+        string resolvedToken = !string.IsNullOrWhiteSpace(apiToken)
+            ? apiToken.Trim()
+            : (Environment.GetEnvironmentVariable("PRESENTATION_COPILOT_API_TOKEN") ?? string.Empty);
         var factory = new Func<ClientWebSocket>(() =>
         {
             var ws = new ClientWebSocket();
             ws.Options.KeepAliveInterval = TimeSpan.FromSeconds(30);
-            var token = Environment.GetEnvironmentVariable("PRESENTATION_COPILOT_API_TOKEN");
-            if (!string.IsNullOrWhiteSpace(token))
-                ws.Options.SetRequestHeader("Authorization", "Bearer " + token);
+            if (!string.IsNullOrWhiteSpace(resolvedToken))
+                ws.Options.SetRequestHeader("Authorization", "Bearer " + resolvedToken);
             return ws;
         });
 
@@ -67,8 +69,12 @@ public sealed class WebSocketService : IAsyncDisposable
             ConnectionStateChanged?.Invoke(this, false);
         });
 
-        await _client.StartOrFail();
-        ConnectionStateChanged?.Invoke(this, true);
+        // Use Start() (not StartOrFail): it launches the reconnect loop even when
+        // the server is not up yet, so the client recovers on its own instead of
+        // requiring a restart. Never report Connected unless it really is.
+        await _client.Start();
+        if (_client.IsRunning)
+            ConnectionStateChanged?.Invoke(this, true);
     }
 
     /// <summary>

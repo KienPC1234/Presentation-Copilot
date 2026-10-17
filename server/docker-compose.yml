@@ -1,40 +1,82 @@
-version: "3.9"
-
+# GPU-first Compose stack for the Presentation Copilot server.
+#
+# Requires the NVIDIA Container Toolkit on the host. Verify with:
+#   docker run --rm --gpus all nvidia/cuda:12.4.1-base-ubuntu22.04 nvidia-smi
+#
+# CPU-only host? Set INSTALL_CUDA=false, WHISPER_DEVICE=cpu,
+# WHISPER_COMPUTE_TYPE=int8 in server/.env and delete the `gpus:` keys below.
 services:
   copilot-server:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        # CUDA wheels for faster-whisper. Set INSTALL_CUDA=false for a smaller
+        # CPU-only image.
+        INSTALL_CUDA: ${INSTALL_CUDA:-true}
+    # Give the container the GPU (Whisper/ctranslate2 uses CUDA when available).
+    gpus: all
     ports:
-      - "127.0.0.1:8765:8765"
+      # Keep the panel on loopback unless you deliberately expose it on a
+      # trusted LAN/VPN interface. Set BIND_ADDRESS=0.0.0.0 to widen it.
+      - "${BIND_ADDRESS:-127.0.0.1}:8765:8765"
+    # Reach services running on the host (e.g. a host Ollama) via
+    # http://host.docker.internal:<port>.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
-      - ./data:/app/data
+      # Read-only view of the server machine that the admin panel browses and
+      # ingests from. Point HOST_DOCS_ROOT at the folder holding the project.
+      - "${HOST_DOCS_ROOT:-./data/docs}:/host:ro"
+      # Persistent data: ChromaDB, exports, temp files and the generated token.
+      - "./data:/app/data"
+      # Writable location for generated markdown, mounted separately so the
+      # host decides where documents land.
+      - "${EXPORT_HOST_DIR:-./data/exports}:/app/data/exports"
+      # Persist downloaded Whisper models so recreating the container does not
+      # re-download them.
+      - "./data/hf-cache:/root/.cache/huggingface"
     env_file:
-      - .env
+      # Optional: run scripts/bootstrap_env.py or copy .env.example if you want
+      # to pin OLLAMA_* or API_TOKEN. Missing file is not an error.
+      - path: .env
+        required: false
     environment:
-      API_TOKEN: ${API_TOKEN:?Set API_TOKEN in server/.env for Docker access}
+      # API_TOKEN from .env wins. Empty means docker-entrypoint.sh generates one
+      # into ./data/.api-token on first run.
+      AUTO_GENERATE_TOKEN: "true"
+      DATA_DIR: /app/data
+      TOKEN_FILE: /app/data/.api-token
+      HOST_MOUNT_ROOT: /host
+      DOCS_DIR: /app/data/docs
+      CHROMA_PERSIST_DIR: /app/data/chroma
+      TMP_DIR: /app/data/tmp
+      EXPORT_DIR: /app/data/exports
+      # Whisper on GPU. Override in .env to use CPU (device=cpu, compute_type=int8).
+      WHISPER_DEVICE: ${WHISPER_DEVICE:-cuda}
+      WHISPER_COMPUTE_TYPE: ${WHISPER_COMPUTE_TYPE:-float16}
+      WHISPER_MODEL_SIZE: ${WHISPER_MODEL_SIZE:-small}
+      # LLM endpoint. Defaults to the bundled Ollama container; reach a host
+      # service with OLLAMA_URL=http://host.docker.internal:11434 in .env.
+      # (OLLAMA_URL is Compose-only; OLLAMA_BASE_URL stays for local runs.)
+      OLLAMA_BASE_URL: ${OLLAMA_URL:-http://ollama:11434}
+      OLLAMA_EMBEDDING_BASE_URL: ${OLLAMA_EMBEDDING_URL:-}
     depends_on:
       - ollama
     restart: unless-stopped
 
   ollama:
     image: ollama/ollama:latest
-    ports:
-      - "127.0.0.1:11434:11434"
+    gpus: all
+    # The server reaches Ollama over the Compose network as http://ollama:11434,
+    # so no host port is published by default. Uncomment (on a free port) only if
+    # you want to run the host `ollama` CLI against this container. Publishing on
+    # 11434 would clash with an Ollama already running on the host.
+    # ports:
+    #   - "127.0.0.1:11435:11434"
     volumes:
       - ollama_data:/root/.ollama
     restart: unless-stopped
-    # ── GPU section (optional) ───────────────────────────────────────────────
-    # Remove the 'deploy' block entirely if you are running CPU-only.
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
-    # ────────────────────────────────────────────────────────────────────────
 
 volumes:
   ollama_data:
-

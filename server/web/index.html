@@ -26,6 +26,14 @@
             return String(value).replace(/[&<>"']/g, c => ({'&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'}[c]));
         }
 
+        function formatBytes(bytes) {
+            const value = Number(bytes) || 0;
+            if (value < 1024) return `${value} B`;
+            if (value < 1048576) return `${(value / 1024).toFixed(1)} KB`;
+            if (value < 1073741824) return `${(value / 1048576).toFixed(1)} MB`;
+            return `${(value / 1073741824).toFixed(2)} GB`;
+        }
+
         tailwind.config = {
             darkMode: 'class',
             theme: {
@@ -59,6 +67,7 @@
             </h1>
         </div>
         <div class="flex items-center space-x-4 text-xs">
+            <span id="tokenBadge" class="px-2.5 py-1 rounded-full bg-gray-800 text-gray-300 border border-bordercolor">auth: …</span>
             <span id="healthBadge" class="px-2.5 py-1 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-800 flex items-center gap-1.5">
                 <span class="w-2 h-2 rounded-full bg-emerald-400"></span> Online
             </span>
@@ -74,6 +83,9 @@
             <button onclick="switchTab('tab-defense')" id="btn-tab-defense" class="tab-btn px-4 py-3 border-b-2 border-transparent text-gray-400 hover:text-white">
                 CHUẨN BỊ PHẢN BIỆN
             </button>
+            <button onclick="switchTab('tab-documents')" id="btn-tab-documents" class="tab-btn px-4 py-3 border-b-2 border-transparent text-gray-400 hover:text-white">
+                📄 TÀI LIỆU MARKDOWN
+            </button>
             <button onclick="switchTab('tab-ingest')" id="btn-tab-ingest" class="tab-btn px-4 py-2 border-b-2 border-accent text-accent font-bold">
                 📂 PROJECT INGESTION & PATH
             </button>
@@ -85,6 +97,9 @@
             </button>
             <button onclick="switchTab('tab-status')" id="btn-tab-status" class="tab-btn px-4 py-2 border-b-2 border-transparent text-gray-400 hover:text-white">
                 📊 ENGINE METRICS
+            </button>
+            <button onclick="switchTab('tab-admin')" id="btn-tab-admin" class="tab-btn px-4 py-3 border-b-2 border-transparent text-gray-400 hover:text-white">
+                🛠️ SERVER ADMIN
             </button>
         </div>
 
@@ -109,6 +124,80 @@
             <div id="defenseQuestions" class="grid gap-4 font-sans"></div>
         </section>
 
+        <!-- ── TAB: AI MARKDOWN DOCUMENTS ──────────────────────────── -->
+        <div id="tab-documents" class="tab-content hidden space-y-6 font-sans">
+            <div class="bg-cardbg border border-bordercolor rounded-xl p-6 space-y-4">
+                <div>
+                    <h2 class="text-base font-bold text-white">Bộ tài liệu markdown chuẩn bị phản biện</h2>
+                    <p class="text-xs text-gray-400 mt-1">
+                        AI tổng hợp thành tệp markdown có mã nguồn trích dẫn: bộ câu hỏi, kịch bản phản biện, dàn ý trình bày,
+                        phiếu nhắc nhanh và phụ lục bằng chứng. Tài liệu được cache theo đề tài nên lần sau mở là có ngay.
+                    </p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="space-y-1.5 md:col-span-2">
+                        <label for="docTopic" class="text-xs text-gray-300 font-bold">Tên sản phẩm / đề tài</label>
+                        <input id="docTopic" minlength="3" maxlength="200" placeholder="Ví dụ: nền tảng học tập trực tuyến"
+                               class="w-full bg-darkbg border border-bordercolor rounded-lg px-3 py-2 text-gray-100 text-xs">
+                    </div>
+                    <div class="space-y-1.5 md:col-span-2">
+                        <label for="docFocus" class="text-xs text-gray-300 font-bold">Trọng tâm muốn luyện (không bắt buộc)</label>
+                        <textarea id="docFocus" rows="2" maxlength="2000" placeholder="Ví dụ: chi phí hạ tầng, bảo mật, khả năng chịu tải"
+                                  class="w-full bg-darkbg border border-bordercolor rounded-lg px-3 py-2 text-gray-100 text-xs"></textarea>
+                    </div>
+                    <div class="space-y-1.5">
+                        <label for="docLanguage" class="text-xs text-gray-300 font-bold">Ngôn ngữ</label>
+                        <select id="docLanguage" class="w-full bg-darkbg border border-bordercolor rounded-lg px-3 py-2 text-gray-200 text-xs">
+                            <option value="vi">Tiếng Việt</option><option value="en">English</option>
+                        </select>
+                    </div>
+                    <div class="space-y-1.5">
+                        <label for="docCount" class="text-xs text-gray-300 font-bold">Số câu hỏi</label>
+                        <select id="docCount" class="w-full bg-darkbg border border-bordercolor rounded-lg px-3 py-2 text-gray-200 text-xs">
+                            <option>6</option><option>9</option><option>12</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="space-y-2">
+                    <div class="text-xs text-gray-300 font-bold">Loại tài liệu cần tạo</div>
+                    <div id="docKinds" class="flex flex-wrap gap-3 text-xs text-gray-300"></div>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-3 pt-1">
+                    <button onclick="generateDocuments()" id="docGenerate"
+                            class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg text-xs">
+                        ⚡ Tạo bộ tài liệu
+                    </button>
+                    <button onclick="prebuildDocuments()" id="docPrebuild"
+                            class="px-4 py-2.5 bg-blue-700 hover:bg-blue-600 text-white rounded-lg text-xs">
+                        📦 Tạo trước theo cấu hình
+                    </button>
+                    <label class="flex items-center gap-2 text-xs text-gray-400">
+                        <input type="checkbox" id="docForce" class="accent-blue-500"> Bỏ qua cache (tạo lại)
+                    </label>
+                    <span id="docStatus" class="text-xs text-gray-400" role="status" aria-live="polite"></span>
+                </div>
+            </div>
+
+            <div id="docPreviewCard" class="hidden bg-cardbg border border-bordercolor rounded-xl p-6 space-y-3">
+                <div class="flex items-center justify-between gap-3">
+                    <h3 class="text-sm font-bold text-white">Xem trước tài liệu</h3>
+                    <div id="docPreviewLinks" class="flex flex-wrap gap-2 text-xs"></div>
+                </div>
+                <pre id="docPreview" class="text-[11px] text-gray-300 whitespace-pre-wrap max-h-[26rem] overflow-y-auto bg-darkbg border border-bordercolor rounded-lg p-4"></pre>
+            </div>
+
+            <div class="bg-cardbg border border-bordercolor rounded-xl p-6 space-y-4">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-sm font-bold text-white">Tài liệu đã tạo (cache trên server)</h3>
+                    <button onclick="loadDocuments()" class="px-3 py-1.5 rounded bg-gray-800 hover:bg-gray-700 text-xs text-gray-300 border border-bordercolor">🔄 Làm mới</button>
+                </div>
+                <div id="docList" class="space-y-2 text-xs text-gray-300"></div>
+            </div>
+        </div>
+
         <!-- ── TAB 1: INGESTION & PATH ─────────────────────────────── -->
         <div id="tab-ingest" class="tab-content space-y-6">
             <div class="bg-cardbg border border-bordercolor rounded-xl p-6 space-y-4">
@@ -126,14 +215,18 @@
 
                 <!-- Path Input -->
                 <div class="space-y-2">
-                    <label class="text-xs text-gray-300 font-bold">Target Repository / Folder Path:</label>
+                    <label class="text-xs text-gray-300 font-bold">Target Repository / Folder Path (on the server):</label>
                     <div class="flex gap-2">
                         <input type="text" id="targetPath" value="./data/docs"
                                class="flex-1 bg-darkbg border border-bordercolor rounded-lg px-4 py-2.5 text-gray-100 focus:outline-none focus:border-accent text-xs">
+                        <button onclick="openBrowser('targetPath')" class="px-4 py-2.5 bg-gray-800 hover:bg-gray-700 border border-bordercolor text-gray-200 rounded-lg text-xs font-semibold">
+                            📁 Browse Server
+                        </button>
                         <button onclick="verifyPath()" class="px-4 py-2.5 bg-gray-800 hover:bg-gray-700 border border-bordercolor text-gray-200 rounded-lg text-xs font-semibold">
                             🔍 Verify Path & Permissions
                         </button>
                     </div>
+                    <p id="rootsHint" class="text-[11px] text-gray-500"></p>
                 </div>
 
                 <!-- Verification Result Box -->
@@ -312,6 +405,30 @@
                     </p>
                 </div>
 
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="space-y-1.5">
+                        <label for="audioFormat" class="text-xs text-gray-300 font-bold">Transcription audio container</label>
+                        <select id="audioFormat"
+                                class="w-full bg-darkbg border border-bordercolor rounded-lg px-3 py-2 text-gray-200 text-xs focus:outline-none focus:border-accent">
+                            <option value="m4a">M4A (Opus) — nhỏ, mặc định</option>
+                            <option value="ogg">OGG (Opus) — tương thích rộng</option>
+                            <option value="wav">WAV — không nén, nhanh nhất</option>
+                        </select>
+                        <p class="text-[11px] text-gray-500">Định dạng tệp tạm đưa cho Whisper. Tự quay về WAV nếu ffmpeg/Opus lỗi.</p>
+                    </div>
+                    <div class="space-y-1.5">
+                        <label class="text-xs text-gray-300 font-bold">Speech model</label>
+                        <div class="flex items-center gap-2">
+                            <button type="button" onclick="warmupStt()"
+                                    class="px-3 py-2 bg-gray-800 hover:bg-gray-700 border border-bordercolor rounded-lg text-xs text-gray-200">
+                                🔥 Nạp trước model
+                            </button>
+                            <span id="sttStatus" class="text-[11px] text-gray-400">chưa rõ</span>
+                        </div>
+                        <p class="text-[11px] text-gray-500">Model Whisper được nạp lần đầu khi dùng; nạp trước để nhấn phím là trả lời ngay.</p>
+                    </div>
+                </div>
+
                 <div class="flex items-center gap-3 pt-2">
                     <button onclick="saveEngineConfig()"
                             class="px-5 py-2.5 bg-accent hover:bg-blue-400 text-darkbg font-bold rounded-lg text-xs">
@@ -349,12 +466,143 @@
             </div>
         </div>
 
+        <!-- ── TAB 5: SERVER ADMIN & MAINTENANCE ──────────────────── -->
+        <div id="tab-admin" class="tab-content hidden space-y-6 font-sans">
+            <div class="bg-cardbg border border-bordercolor rounded-xl p-6 space-y-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="text-base font-bold text-white">Server status</h2>
+                        <p class="text-xs text-gray-400 mt-1">Version, storage, browsable folders and API-key state.</p>
+                    </div>
+                    <button onclick="loadSystemInfo()" class="px-3 py-1.5 rounded bg-gray-800 hover:bg-gray-700 text-xs text-gray-300 border border-bordercolor">🔄 Refresh</button>
+                </div>
+                <div id="systemInfo" class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs text-gray-300"></div>
+            </div>
+
+            <div class="bg-cardbg border border-bordercolor rounded-xl p-6 space-y-4">
+                <h2 class="text-base font-bold text-white">API key</h2>
+                <p class="text-xs text-gray-400">
+                    The key is read from <span class="font-mono">API_TOKEN</span> in <span class="font-mono">.env</span>, or generated into the mounted
+                    data folder on first Docker run. Put the same value in <span class="font-mono">PRESENTATION_COPILOT_API_TOKEN</span> on the Windows client.
+                </p>
+                <div id="tokenInfo" class="text-xs text-gray-300"></div>
+                <div class="flex flex-wrap items-center gap-3">
+                    <button onclick="rotateToken()" class="px-4 py-2 bg-amber-700 hover:bg-amber-600 text-white rounded-lg text-xs">🔑 Rotate key</button>
+                    <span id="tokenStatus" class="text-xs text-emerald-400"></span>
+                </div>
+            </div>
+
+            <div class="bg-cardbg border border-bordercolor rounded-xl p-6 space-y-4">
+                <h2 class="text-base font-bold text-white">Agent tools</h2>
+                <p class="text-xs text-gray-400">
+                    The ReAct loop can call <span class="font-mono">rag_search</span>, <span class="font-mono">web_search</span> and
+                    <span class="font-mono">calculator</span> by default. Enabling bash lets the agent run bounded shell commands to inspect and
+                    ingest the project tree; it is powerful, so keep it off unless you trust every caller of this server.
+                </p>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs text-gray-300">
+                    <label class="flex items-center gap-2"><input type="checkbox" id="agentBash" class="accent-blue-500"> Enable bash tool</label>
+                    <label class="flex items-center gap-2"><input type="checkbox" id="agentIngest" class="accent-blue-500"> Enable agent ingest tool</label>
+                    <label class="flex items-center gap-2">Max iterations
+                        <input type="number" id="agentIterations" min="1" max="8" value="3" class="w-20 bg-darkbg border border-bordercolor rounded px-2 py-1">
+                    </label>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button onclick="saveAgentTools()" class="px-4 py-2 bg-blue-700 hover:bg-blue-600 text-white rounded-lg text-xs">💾 Save tool policy</button>
+                    <span id="agentStatus" class="text-xs text-emerald-400"></span>
+                </div>
+                <div id="agentToolsNow" class="text-[11px] text-gray-500"></div>
+            </div>
+
+            <div class="bg-cardbg border border-bordercolor rounded-xl p-6 space-y-4">
+                <h2 class="text-base font-bold text-white">Panel defaults &amp; pre-generation</h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs text-gray-300">
+                    <div class="space-y-1.5">
+                        <label class="text-gray-300 font-bold">Answer style</label>
+                        <select id="adminStyle" class="w-full bg-darkbg border border-bordercolor rounded-lg px-3 py-2 text-gray-200 text-xs">
+                            <option value="plain">Plain (everyday words)</option><option value="technical">Technical</option>
+                        </select>
+                    </div>
+                    <div class="space-y-1.5">
+                        <label class="text-gray-300 font-bold">Default language</label>
+                        <select id="adminLanguage" class="w-full bg-darkbg border border-bordercolor rounded-lg px-3 py-2 text-gray-200 text-xs">
+                            <option value="vi">Tiếng Việt</option><option value="en">English</option>
+                        </select>
+                    </div>
+                    <div class="space-y-1.5">
+                        <label class="text-gray-300 font-bold">Default question count</label>
+                        <input type="number" id="adminCount" min="3" max="12" class="w-full bg-darkbg border border-bordercolor rounded-lg px-3 py-2 text-gray-200 text-xs">
+                    </div>
+                </div>
+                <div class="space-y-1.5">
+                    <label class="text-gray-300 font-bold text-xs">Pre-generate these topics in advance (one per line)</label>
+                    <textarea id="adminPrebuildTopics" rows="3" class="w-full bg-darkbg border border-bordercolor rounded-lg p-3 text-xs text-gray-200 font-mono"></textarea>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs text-gray-300">
+                    <label class="flex items-center gap-2"><input type="checkbox" id="adminAutoPrebuild" class="accent-blue-500"> Auto prebuild on ingest</label>
+                    <label class="flex items-center gap-2"><input type="checkbox" id="adminCleanupStartup" class="accent-blue-500"> Clean temp files at startup</label>
+                    <label class="flex items-center gap-2">Export retention (days)
+                        <input type="number" id="adminRetention" min="0" max="3650" class="w-20 bg-darkbg border border-bordercolor rounded px-2 py-1">
+                    </label>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button onclick="saveAdminSettings()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs">💾 Save defaults</button>
+                    <span id="adminStatus" class="text-xs text-emerald-400"></span>
+                </div>
+            </div>
+
+            <div class="bg-cardbg border border-bordercolor rounded-xl p-6 space-y-4">
+                <h2 class="text-base font-bold text-white">Cleanup &amp; storage</h2>
+                <div id="storageReport" class="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs text-gray-300"></div>
+                <div class="flex flex-wrap items-center gap-3 text-xs text-gray-300">
+                    <label class="flex items-center gap-2"><input type="checkbox" id="cleanupRuntime" class="accent-blue-500" checked> Temp audio</label>
+                    <label class="flex items-center gap-2"><input type="checkbox" id="cleanupExports" class="accent-blue-500" checked> Old exports</label>
+                    <label class="flex items-center gap-2"><input type="checkbox" id="cleanupLogs" class="accent-blue-500" checked> Logs</label>
+                    <label class="flex items-center gap-2"><input type="checkbox" id="cleanupPurge" class="accent-blue-500"> Purge all exports</label>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button onclick="runCleanup()" class="px-4 py-2 bg-red-900/70 hover:bg-red-800 border border-red-700 text-red-100 rounded-lg text-xs">🧹 Run cleanup</button>
+                    <span id="cleanupStatus" class="text-xs text-emerald-400"></span>
+                </div>
+                <p class="text-[11px] text-gray-500">
+                    Repo cache and Docker garbage are cleaned on the host with <span class="font-mono">scripts/cleanup.sh</span>
+                    (or <span class="font-mono">scripts/cleanup.ps1</span>); the panel cleans what runs inside the container.
+                </p>
+            </div>
+        </div>
+
     </main>
 
     <!-- Footer -->
     <footer class="border-t border-bordercolor py-3 px-6 text-center text-xs text-gray-500 bg-cardbg">
         Presentation Copilot Open Source · Windows WASAPI + WDA Anti-Capture HUD + Python ReAct Engine
     </footer>
+
+    <!-- Server filesystem browser -->
+    <div id="browserModal" class="hidden fixed inset-0 z-[100] bg-black/70 flex items-center justify-center p-4">
+        <div class="bg-cardbg border border-bordercolor rounded-xl w-full max-w-3xl max-h-[80vh] flex flex-col">
+            <div class="flex items-center justify-between border-b border-bordercolor px-4 py-3">
+                <h3 class="text-sm font-bold text-white">Browse server folders</h3>
+                <button onclick="closeBrowser()" class="text-gray-400 hover:text-white text-lg leading-none">✕</button>
+            </div>
+            <div class="px-4 py-3 space-y-2 border-b border-bordercolor">
+                <div class="flex flex-wrap gap-2 items-center text-xs">
+                    <label class="text-gray-400">Root</label>
+                    <select id="browserRoot" class="bg-darkbg border border-bordercolor rounded px-2 py-1 text-gray-200"></select>
+                    <button onclick="browserUp()" class="px-2 py-1 bg-gray-800 hover:bg-gray-700 rounded border border-bordercolor text-gray-300">⬆ Up</button>
+                    <label class="flex items-center gap-1 text-gray-400"><input type="checkbox" id="browserHidden" class="accent-blue-500" onchange="browseTo(currentBrowsePath)"> show hidden</label>
+                </div>
+                <div id="browserPath" class="text-[11px] font-mono text-gray-400 truncate"></div>
+            </div>
+            <div id="browserList" class="flex-1 overflow-y-auto px-2 py-2 text-xs"></div>
+            <div class="flex items-center justify-between border-t border-bordercolor px-4 py-3">
+                <span id="browserNote" class="text-[11px] text-gray-500"></span>
+                <div class="flex gap-2">
+                    <button onclick="useCurrentBrowsePath()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-xs">Use this folder</button>
+                    <button onclick="closeBrowser()" class="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 rounded border border-bordercolor text-gray-300 text-xs">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <script>
         function switchTab(tabId) {
@@ -372,6 +620,8 @@
             if (tabId === 'tab-ingest') refreshStats();
             if (tabId === 'tab-persona') loadPersona();
             if (tabId === 'tab-status') loadEngineConfig();
+            if (tabId === 'tab-documents') loadDocuments();
+            if (tabId === 'tab-admin') loadAdminPanel();
         }
 
         async function refreshStats() {
@@ -547,21 +797,41 @@
                 if (data.ollama_model) {
                     document.getElementById('cfgOllamaModel').value = data.ollama_model;
                 }
+                if (data.transcription_audio_format) {
+                    document.getElementById('audioFormat').value = data.transcription_audio_format;
+                }
+                document.getElementById('sttStatus').innerText = data.whisper_model_loaded
+                    ? 'model đã nạp' : 'model chưa nạp';
             } catch (err) {
                 console.error(err);
+            }
+        }
+
+        async function warmupStt() {
+            const status = document.getElementById('sttStatus');
+            status.innerText = 'đang nạp model…';
+            try {
+                const res = await apiFetch('/api/config/warmup', { method: 'POST' });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Không nạp được model');
+                status.innerText = 'model đã nạp';
+            } catch (err) {
+                status.innerText = `lỗi: ${err.message}`;
             }
         }
 
         async function saveEngineConfig() {
             const lang = document.getElementById('whisperLang').value;
             const prompt = document.getElementById('whisperPrompt').value;
+            const audioFormat = document.getElementById('audioFormat').value;
             const status = document.getElementById('cfgStatus');
 
             try {
                 const res = await apiFetch('/api/config', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ whisper_language: lang, whisper_initial_prompt: prompt })
+                    body: JSON.stringify({ whisper_language: lang, whisper_initial_prompt: prompt,
+                                           transcription_audio_format: audioFormat })
                 });
                 const data = await res.json();
                 status.innerText = "✓ Engine configuration updated!";
@@ -572,7 +842,378 @@
             }
         }
 
-        // Init on load
+        // ── Server filesystem browser ──────────────────────────────────────
+        let browserTargetInput = 'targetPath';
+        let currentBrowsePath = '';
+
+        async function loadFsRoots() {
+            const res = await apiFetch('/api/fs/roots');
+            const data = await res.json();
+            const select = document.getElementById('browserRoot');
+            select.innerHTML = (data.roots || []).map(root =>
+                `<option value="${escapeHtml(root.path)}">${escapeHtml(root.label)} — ${escapeHtml(root.path)}</option>`).join('');
+            const hint = document.getElementById('rootsHint');
+            hint.innerText = data.roots && data.roots.length
+                ? `Browsable: ${data.roots.map(r => r.path).join('  ·  ')}`
+                : 'No browsable root configured. Set HOST_MOUNT_ROOT or DOCS_DIR on the server.';
+            return data.roots || [];
+        }
+
+        async function openBrowser(targetInputId) {
+            browserTargetInput = targetInputId || 'targetPath';
+            document.getElementById('browserModal').classList.remove('hidden');
+            const roots = await loadFsRoots();
+            if (roots.length) await browseTo(roots[0].path);
+        }
+
+        function closeBrowser() {
+            document.getElementById('browserModal').classList.add('hidden');
+        }
+
+        async function browseTo(path) {
+            if (!path) return;
+            currentBrowsePath = path;
+            const showHidden = document.getElementById('browserHidden').checked;
+            const list = document.getElementById('browserList');
+            list.innerHTML = '<div class="px-3 py-2 text-gray-500">Loading…</div>';
+            try {
+                const res = await apiFetch(`/api/fs/list?path=${encodeURIComponent(path)}&show_hidden=${showHidden}`);
+                const data = await res.json();
+                if (!data.ok) {
+                    list.innerHTML = `<div class="px-3 py-2 text-red-400">${escapeHtml(data.error)}</div>`;
+                    return;
+                }
+                document.getElementById('browserPath').innerText = data.path;
+                document.getElementById('browserNote').innerText = data.truncated ? 'List truncated' : `${data.entries.length} entries`;
+                list.innerHTML = data.entries.map(entry => {
+                    const icon = entry.type === 'dir' ? '📁' : '📄';
+                    const action = entry.type === 'dir'
+                        ? `onclick="browseTo('${entry.path.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}')"`
+                        : `onclick="useFile('${entry.path.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}')"`;
+                    const size = entry.type === 'dir' ? '' : formatBytes(entry.size);
+                    return `<div ${action} class="flex items-center justify-between px-3 py-2 rounded hover:bg-gray-800 cursor-pointer border border-transparent hover:border-bordercolor">
+                        <span class="truncate text-gray-200">${icon} ${escapeHtml(entry.name)}</span>
+                        <span class="text-gray-500 ml-3 shrink-0">${size}</span></div>`;
+                }).join('') || '<div class="px-3 py-2 text-gray-500">Empty folder</div>';
+                document.getElementById('browserRoot').value = nearestRoot(path);
+            } catch (err) {
+                list.innerHTML = `<div class="px-3 py-2 text-red-400">${escapeHtml(err.message)}</div>`;
+            }
+        }
+
+        function nearestRoot(path) {
+            const options = Array.from(document.getElementById('browserRoot').options);
+            const match = options.find(option => path === option.value || path.startsWith(option.value));
+            return match ? match.value : (options[0] ? options[0].value : '');
+        }
+
+        async function browserUp() {
+            try {
+                const res = await apiFetch(`/api/fs/list?path=${encodeURIComponent(currentBrowsePath)}`);
+                const data = await res.json();
+                if (data.ok && data.parent) await browseTo(data.parent);
+            } catch (err) { /* ignore */ }
+        }
+
+        function useCurrentBrowsePath() {
+            document.getElementById(browserTargetInput).value = currentBrowsePath;
+            closeBrowser();
+        }
+
+        function useFile(path) {
+            document.getElementById(browserTargetInput).value = path;
+            closeBrowser();
+        }
+
+        document.getElementById('browserRoot').addEventListener('change', event => browseTo(event.target.value));
+
+        // ── AI markdown documents ──────────────────────────────────────────
+        let docKindCatalog = [];
+
+        async function loadDocumentKinds() {
+            try {
+                const res = await apiFetch('/api/admin/settings');
+                const data = await res.json();
+                docKindCatalog = data.document_kinds || [];
+                const container = document.getElementById('docKinds');
+                container.innerHTML = docKindCatalog.map(kind =>
+                    `<label class="flex items-center gap-2 px-3 py-1.5 bg-gray-800 border border-bordercolor rounded-lg">
+                        <input type="checkbox" class="doc-kind accent-blue-500" value="${escapeHtml(kind.key)}" checked> ${escapeHtml(kind.label)}
+                    </label>`).join('');
+                if (data.settings) {
+                    document.getElementById('docLanguage').value = data.settings.default_language || 'vi';
+                    document.getElementById('docCount').value = data.settings.default_count || 6;
+                }
+            } catch (err) { console.error(err); }
+        }
+
+        function selectedDocKinds() {
+            return Array.from(document.querySelectorAll('.doc-kind:checked')).map(el => el.value);
+        }
+
+        async function generateDocuments() {
+            const status = document.getElementById('docStatus');
+            const button = document.getElementById('docGenerate');
+            const parts = {
+                topic: document.getElementById('docTopic').value.trim(),
+                focus: document.getElementById('docFocus').value.trim(),
+                language: document.getElementById('docLanguage').value,
+                count: Number(document.getElementById('docCount').value),
+                kinds: selectedDocKinds(),
+                force: document.getElementById('docForce').checked,
+            };
+            if (parts.topic.length < 3) { status.innerText = 'Nhập đề tài ít nhất 3 ký tự.'; return; }
+            if (!parts.kinds.length) { status.innerText = 'Chọn ít nhất một loại tài liệu.'; return; }
+            button.disabled = true;
+            status.innerText = 'Đang đọc tài liệu và tạo các tệp markdown…';
+            try {
+                const res = await apiFetch('/api/documents/generate', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(parts)
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || data.detail || 'Không tạo được tài liệu');
+                status.innerText = data.cached
+                    ? `✓ Lấy từ cache (${data.cache_key.slice(0, 8)})`
+                    : `✓ Đã tạo ${data.files.length} tệp (${data.status})`;
+                showDocumentPreview(data);
+                loadDocuments();
+            } catch (err) {
+                status.innerText = `Lỗi: ${err.message}`;
+            } finally {
+                button.disabled = false;
+            }
+        }
+
+        async function prebuildDocuments() {
+            const status = document.getElementById('docStatus');
+            status.innerText = 'Đang tạo trước theo cấu hình…';
+            try {
+                const res = await apiFetch('/api/documents/prebuild', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ force: document.getElementById('docForce').checked })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || data.detail || 'Không tạo trước được');
+                status.innerText = `✓ Đã xử lý ${data.count} đề tài.`;
+                loadDocuments();
+            } catch (err) {
+                status.innerText = `Lỗi: ${err.message}`;
+            }
+        }
+
+        function showDocumentPreview(data) {
+            document.getElementById('docPreviewCard').classList.remove('hidden');
+            document.getElementById('docPreview').innerText = data.markdown || '(trống)';
+            const links = document.getElementById('docPreviewLinks');
+            links.innerHTML = (data.files || []).map(file =>
+                `<button onclick="downloadDoc('${data.cache_key}')" class="px-2 py-1 bg-gray-800 hover:bg-gray-700 rounded border border-bordercolor text-gray-300">⬇ ${escapeHtml(file.name)}</button>`
+            ).join('');
+        }
+
+        async function downloadDoc(cacheKey) {
+            try {
+                const res = await apiFetch(`/api/documents/${cacheKey}/markdown`);
+                const text = await res.text();
+                const url = URL.createObjectURL(new Blob([text], {type: 'text/markdown'}));
+                const anchor = document.createElement('a');
+                anchor.href = url; anchor.download = `defense-pack-${cacheKey.slice(0, 8)}.md`; anchor.click();
+                setTimeout(() => URL.revokeObjectURL(url), 1000);
+            } catch (err) { alert('Không tải được: ' + err.message); }
+        }
+
+        async function loadDocuments() {
+            const container = document.getElementById('docList');
+            try {
+                const res = await apiFetch('/api/documents');
+                const data = await res.json();
+                if (!data.documents || !data.documents.length) {
+                    container.innerHTML = '<div class="text-gray-500">Chưa có tài liệu nào được tạo.</div>';
+                    return;
+                }
+                container.innerHTML = data.documents.map(doc => `
+                    <div class="flex flex-wrap items-center justify-between gap-2 bg-darkbg border border-bordercolor rounded-lg px-3 py-2">
+                        <div>
+                            <div class="text-gray-100 font-semibold">${escapeHtml(doc.topic)}</div>
+                            <div class="text-[11px] text-gray-500">${escapeHtml((doc.kinds || []).join(', '))} · ${escapeHtml(doc.language)} · ${escapeHtml(doc.created_at || '')}</div>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="previewDocument('${doc.cache_key}')" class="px-2 py-1 bg-gray-800 hover:bg-gray-700 rounded border border-bordercolor">Xem</button>
+                            <button onclick="downloadDoc('${doc.cache_key}')" class="px-2 py-1 bg-gray-800 hover:bg-gray-700 rounded border border-bordercolor">⬇ Tải</button>
+                            <button onclick="deleteDocument('${doc.cache_key}')" class="px-2 py-1 bg-red-950/60 hover:bg-red-900 rounded border border-red-800 text-red-300">Xóa</button>
+                        </div>
+                    </div>`).join('');
+            } catch (err) {
+                container.innerHTML = `<div class="text-red-400">${escapeHtml(err.message)}</div>`;
+            }
+        }
+
+        async function previewDocument(cacheKey) {
+            const res = await apiFetch(`/api/documents/${cacheKey}/markdown`);
+            document.getElementById('docPreviewCard').classList.remove('hidden');
+            document.getElementById('docPreview').innerText = await res.text();
+            document.getElementById('docPreviewLinks').innerHTML =
+                `<button onclick="downloadDoc('${cacheKey}')" class="px-2 py-1 bg-gray-800 hover:bg-gray-700 rounded border border-bordercolor text-gray-300">⬇ Tải</button>`;
+        }
+
+        async function deleteDocument(cacheKey) {
+            if (!confirm('Xóa tài liệu này khỏi máy chủ?')) return;
+            await apiFetch(`/api/documents/${cacheKey}`, { method: 'DELETE' });
+            loadDocuments();
+        }
+
+        // ── Admin panel ───────────────────────────────────────────────────
+        async function loadAdminPanel() {
+            await Promise.all([loadSystemInfo(), loadAdminSettings(), loadAgentTools(), loadStorageReport()]);
+        }
+
+        async function loadSystemInfo() {
+            try {
+                const res = await apiFetch('/api/admin/system');
+                const data = await res.json();
+                document.getElementById('tokenBadge').innerText = `auth: ${data.token.source}`;
+                document.getElementById('tokenInfo').innerHTML =
+                    `<div>Source: <span class="font-mono text-emerald-400">${escapeHtml(data.token.source)}</span> · Key: <span class="font-mono">${escapeHtml(data.token.masked || '(none)')}</span></div>`;
+                const cards = [
+                    ['Version', data.version],
+                    ['Host mount', data.host_mount_root || '(not mounted)'],
+                    ['Exports', data.export_dir],
+                    ['Temp', data.tmp_dir],
+                    ['Retention', `${data.retention_days} days`],
+                    ['Roots', (data.roots || []).map(r => r.path).join(', ') || '(none)'],
+                ];
+                document.getElementById('systemInfo').innerHTML = cards.map(([label, value]) =>
+                    `<div class="bg-darkbg border border-bordercolor rounded-lg p-3">
+                        <div class="text-gray-500">${escapeHtml(label)}</div>
+                        <div class="text-gray-200 mt-1 break-all">${escapeHtml(value || '—')}</div>
+                    </div>`).join('');
+            } catch (err) { console.error(err); }
+        }
+
+        async function loadAdminSettings() {
+            try {
+                const res = await apiFetch('/api/admin/settings');
+                const data = await res.json();
+                const s = data.settings;
+                document.getElementById('adminStyle').value = s.response_style;
+                document.getElementById('adminLanguage').value = s.default_language;
+                document.getElementById('adminCount').value = s.default_count;
+                document.getElementById('adminPrebuildTopics').value = (s.prebuild_topics || []).join('\n');
+                document.getElementById('adminAutoPrebuild').checked = s.auto_prebuild;
+                document.getElementById('adminCleanupStartup').checked = s.cleanup_on_startup;
+                document.getElementById('adminRetention').value = s.export_retention_days;
+            } catch (err) { console.error(err); }
+        }
+
+        async function saveAdminSettings() {
+            const status = document.getElementById('adminStatus');
+            const payload = {
+                response_style: document.getElementById('adminStyle').value,
+                default_language: document.getElementById('adminLanguage').value,
+                default_count: Number(document.getElementById('adminCount').value),
+                prebuild_topics: document.getElementById('adminPrebuildTopics').value.split('\n').map(x => x.trim()).filter(Boolean),
+                auto_prebuild: document.getElementById('adminAutoPrebuild').checked,
+                cleanup_on_startup: document.getElementById('adminCleanupStartup').checked,
+                export_retention_days: Number(document.getElementById('adminRetention').value),
+            };
+            try {
+                const res = await apiFetch('/api/admin/settings', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Không lưu được');
+                status.innerText = '✓ Đã lưu cấu hình';
+                setTimeout(() => status.innerText = '', 3000);
+            } catch (err) {
+                status.innerText = `Lỗi: ${err.message}`;
+            }
+        }
+
+        async function loadAgentTools() {
+            try {
+                const res = await apiFetch('/api/agent/tools');
+                const data = await res.json();
+                document.getElementById('agentBash').checked = data.bash_enabled;
+                document.getElementById('agentIngest').checked = data.ingest_enabled;
+                document.getElementById('agentIterations').value = data.max_iterations;
+                document.getElementById('agentToolsNow').innerText = `Active tools: ${(data.tools || []).join(', ')}`;
+            } catch (err) { console.error(err); }
+        }
+
+        async function saveAgentTools() {
+            const status = document.getElementById('agentStatus');
+            const payload = {
+                bash_enabled: document.getElementById('agentBash').checked,
+                ingest_enabled: document.getElementById('agentIngest').checked,
+                max_iterations: Number(document.getElementById('agentIterations').value),
+            };
+            if (payload.bash_enabled && !confirm('Bật bash cho agent nghĩa là model có thể chạy lệnh shell trên máy chủ. Tiếp tục?')) return;
+            try {
+                const res = await apiFetch('/api/agent/tools', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Không lưu được');
+                status.innerText = '✓ Đã áp dụng';
+                document.getElementById('agentToolsNow').innerText = `Active tools: ${(data.tools || []).join(', ')}`;
+                setTimeout(() => status.innerText = '', 3000);
+            } catch (err) {
+                status.innerText = `Lỗi: ${err.message}`;
+            }
+        }
+
+        async function loadStorageReport() {
+            try {
+                const res = await apiFetch('/api/maintenance/report');
+                const data = await res.json();
+                const storage = data.storage || {};
+                document.getElementById('storageReport').innerHTML = Object.entries(storage).map(([name, item]) =>
+                    `<div class="bg-darkbg border border-bordercolor rounded-lg p-3">
+                        <div class="text-gray-500 uppercase">${escapeHtml(name)}</div>
+                        <div class="text-gray-200 mt-1">${formatBytes(item.bytes)} · ${item.files} files</div>
+                    </div>`).join('');
+            } catch (err) { console.error(err); }
+        }
+
+        async function runCleanup() {
+            const status = document.getElementById('cleanupStatus');
+            const targets = [];
+            if (document.getElementById('cleanupRuntime').checked) targets.push('runtime');
+            if (document.getElementById('cleanupExports').checked) targets.push('exports');
+            if (document.getElementById('cleanupLogs').checked) targets.push('logs');
+            const purge = document.getElementById('cleanupPurge').checked;
+            if (purge && !confirm('Xóa toàn bộ tài liệu đã tạo? Không thể hoàn tác.')) return;
+            try {
+                const res = await apiFetch('/api/maintenance/cleanup', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ targets, purge_exports: purge })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Dọn dẹp thất bại');
+                const freed = data.results.reduce((sum, item) => sum + (item.bytes_freed || 0), 0);
+                status.innerText = `✓ Đã dọn ${formatBytes(freed)}`;
+                loadStorageReport();
+                loadDocuments();
+            } catch (err) {
+                status.innerText = `Lỗi: ${err.message}`;
+            }
+        }
+
+        async function rotateToken() {
+            if (!confirm('Tạo khoá mới? Client và dashboard đang dùng khoá cũ sẽ phải nhập lại.')) return;
+            const status = document.getElementById('tokenStatus');
+            try {
+                const res = await apiFetch('/api/admin/token/rotate', { method: 'POST' });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || 'Không tạo được khoá');
+                sessionStorage.setItem('copilotApiToken', data.token);
+                status.innerText = `✓ Khoá mới: ${data.token}`;
+                loadSystemInfo();
+            } catch (err) {
+                status.innerText = `Lỗi: ${err.message}`;
+            }
+        }
+
+        // ── Defence question set ───────────────────────────────────────────
         let defensePlan = null;
         document.getElementById('defenseForm').addEventListener('submit', async event => {
             event.preventDefault();
@@ -621,9 +1262,12 @@
             const anchor = document.createElement('a'); anchor.href = url; anchor.download = 'defense-preparation.json'; anchor.click();
             setTimeout(() => URL.revokeObjectURL(url), 1000);
         });
+
+        // Init on load
         refreshStats();
         loadEngineConfig();
+        loadFsRoots();
+        loadDocumentKinds();
     </script>
 </body>
 </html>
-

@@ -1,0 +1,15 @@
+[Unit]
+Description=Expose host Ollama to the Docker bridge (172.17.0.1:11435 -> 127.0.0.1:11434)
+Documentation=https://github.com/  # see server/README.md "Reaching services on the host"
+After=network-online.target ollama.service
+Wants=network-online.target
+
+[Service]
+# Keeps Ollama bound to loopback (no LAN exposure); only the Docker bridge can reach it.
+# Requires socat: sudo apt-get install -y socat
+ExecStart=/usr/bin/socat TCP-LISTEN:11435,bind=172.17.0.1,fork,reuseaddr TCP:127.0.0.1:11434
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

@@ -1,9 +1,21 @@
 import wave
 import struct
 import logging
+import shutil
+import subprocess
 import numpy as np
 
 logger = logging.getLogger(__name__)
+
+# Suffixes we can hand to ffmpeg for Opus encoding, and the muxer to force.
+_OPUS_MUXERS = {
+    ".m4a": "mp4",
+    ".mp4": "mp4",
+    ".oga": "ogg",
+    ".ogg": "ogg",
+    ".opus": "ogg",
+    ".webm": "webm",
+}
 
 
 def pcm_bytes_to_wav(pcm_bytes: bytes, sample_rate: int, output_path: str) -> None:
@@ -24,6 +36,54 @@ def pcm_bytes_to_wav(pcm_bytes: bytes, sample_rate: int, output_path: str) -> No
         wf.writeframes(pcm_bytes)
 
     logger.debug("Wrote WAV file: %s (%d bytes PCM)", output_path, len(pcm_bytes))
+
+
+def pcm_bytes_to_opus(pcm_bytes: bytes, sample_rate: int, output_path: str,
+                      bitrate: str = "32k") -> None:
+    """Encode raw 16-bit mono PCM to Opus using ffmpeg (the modern narrowband codec).
+
+    The container follows ``output_path``'s suffix: ``.m4a``/``.mp4`` (MP4),
+    ``.ogg``/``.opus``/``.oga`` (Ogg) or ``.webm``. Raises ``RuntimeError`` when
+    ffmpeg is missing or the encode fails so the caller can fall back to WAV.
+    """
+    suffix = ("." + output_path.rsplit(".", 1)[-1].lower()) if "." in output_path else ""
+    muxer = _OPUS_MUXERS.get(suffix)
+    if muxer is None:
+        raise RuntimeError(f"Unsupported Opus container: {output_path}")
+
+    ffmpeg = shutil.which("ffmpeg")
+    if ffmpeg is None:
+        raise RuntimeError("ffmpeg is not installed; cannot encode Opus audio")
+
+    command = [
+        ffmpeg, "-hide_banner", "-loglevel", "error", "-y",
+        "-f", "s16le", "-ar", str(sample_rate), "-ac", "1", "-i", "pipe:0",
+        "-c:a", "libopus", "-b:a", bitrate, "-vbr", "on", "-application", "voip",
+        "-f", muxer,
+    ]
+    if muxer == "mp4":
+        # Opus-in-MP4 is still flagged experimental by some ffmpeg builds.
+        command += ["-strict", "-2"]
+    command.append(output_path)
+
+    try:
+        completed = subprocess.run(command, input=pcm_bytes, capture_output=True, timeout=60)
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise RuntimeError(f"Opus encoder could not run: {exc}") from exc
+
+    if completed.returncode != 0:
+        detail = completed.stderr.decode("utf-8", "replace").strip()[:300]
+        raise RuntimeError(f"Opus encoder failed: {detail}")
+
+    logger.debug("Wrote Opus file: %s (%d bytes PCM -> %s)", output_path, len(pcm_bytes), suffix)
+
+
+def write_audio_file(pcm_bytes: bytes, sample_rate: int, output_path: str) -> None:
+    """Write PCM to the format implied by ``output_path``'s suffix."""
+    if output_path.lower().endswith(".wav"):
+        pcm_bytes_to_wav(pcm_bytes, sample_rate, output_path)
+        return
+    pcm_bytes_to_opus(pcm_bytes, sample_rate, output_path)
 
 
 def normalize_audio(pcm_bytes: bytes) -> bytes:

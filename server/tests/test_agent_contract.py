@@ -79,16 +79,42 @@ class AgentContractTests(unittest.TestCase):
         self.agent._plain_llm.invoke.assert_called_once()
         self.assertEqual(result["retrieved_sources"], ["[actual.md]"])
 
-    def test_review_rejects_twice_without_remembering_answer(self):
+    def test_review_rejections_are_bounded_and_not_remembered(self):
         self.agent._executor.invoke.return_value = {"intermediate_steps": []}
         self.agent._review_llm.invoke.return_value.content = json.dumps({"issues": [
             {"code": "unsupported_claim", "detail": "The endpoint is invented."}]})
         with self.assertLogs(self.module.logger, level="ERROR"):
             result = self.agent.run("question", self.ctx)
         self.assertIn("error", result)
-        self.assertEqual(self.agent._plain_llm.invoke.call_count, 2)
-        self.assertEqual(self.agent._review_llm.invoke.call_count, 2)
+        # One composition + three bounded repairs (default AGENT_MAX_REPAIRS=3).
+        self.assertEqual(self.agent._plain_llm.invoke.call_count, 4)
+        self.assertEqual(self.agent._review_llm.invoke.call_count, 4)
         self.assertEqual(self.ctx.get_history(), [])
+
+    def test_bare_question_without_history_asks_for_clarification(self):
+        result = self.agent.run("Tại sao?", self.ctx)
+        self.assertEqual(result["review_status"], "clarification")
+        self.assertIn("rõ", result["key_point"].lower())
+        self.agent._executor.invoke.assert_not_called()
+        self.agent._plain_llm.invoke.assert_not_called()
+
+    def test_bare_question_with_history_is_answered_normally(self):
+        self.ctx.add_user("Vì sao chọn FAISS?")
+        self.ctx.add_assistant("Vì độ trễ thấp.")
+        self.agent._executor.invoke.return_value = {"intermediate_steps": []}
+        self.agent.run("Hả?", self.ctx)
+        self.agent._executor.invoke.assert_called_once()
+
+    def test_zero_repairs_refuses_after_the_first_review(self):
+        self.module.settings.agent_max_repairs = 0
+        self.agent._executor.invoke.return_value = {"intermediate_steps": []}
+        self.agent._review_llm.invoke.return_value.content = json.dumps({"issues": [
+            {"code": "missing_part", "detail": "A requested part is missing."}]})
+        with self.assertLogs(self.module.logger, level="ERROR"):
+            result = self.agent.run("question", self.ctx)
+        self.assertIn("error", result)
+        self.assertEqual(self.agent._plain_llm.invoke.call_count, 1)
+        self.assertEqual(self.agent._review_llm.invoke.call_count, 1)
 
     def test_review_repairs_once_and_rechecks(self):
         self.agent._executor.invoke.return_value = {"intermediate_steps": []}

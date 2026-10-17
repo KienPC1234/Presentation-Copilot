@@ -201,9 +201,10 @@
                     </ItemsControl>
                 </StackPanel>
 
-                <!-- Framework Steps -->
-                <TextBlock Text="{Binding RetrievedSources, StringFormat=Related sources: {0}}"
+                <!-- Related sources (hidden when empty) -->
+                <TextBlock Text="{Binding RetrievedSources}"
                            Foreground="#8B949E" FontSize="10" TextWrapping="Wrap"
+                           Visibility="{Binding HasSources, Converter={StaticResource BoolToVis}}"
                            Margin="0,0,0,8"/>
 
                 <!-- Framework Steps -->

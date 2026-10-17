@@ -19,6 +19,8 @@ public partial class MainWindow : Window
     private HudWindow? _hudWindow;
     private readonly CancellationTokenSource _cts = new();
     private string? _pendingRequestId;
+    private long _pendingAudioBytes;
+    private const long MaxPendingAudioBytes = 4_000_000; // ~2 minutes of 16 kHz mono PCM
 
     public MainWindow()
     {
@@ -91,8 +93,18 @@ public partial class MainWindow : Window
                     _viewModel.IsBusy = false;
                     _viewModel.StatusMessage = "Disconnected";
                 }
+                else
+                {
+                    _viewModel.StatusMessage = "Connected";
+                }
             });
+            // Re-send the topic on the first connect and after every reconnect:
+            // the server gives each connection a fresh context.
+            if (connected)
+                _ = SendTopicAsync(_config.PresentationTopic);
         };
+
+        _audioService.DataAvailable += OnAudioDataAvailable;
 
         _wsService.SuggestionReceived += (_, json) =>
         {
@@ -105,11 +117,59 @@ public partial class MainWindow : Window
         };
     }
 
+    /// <summary>
+    /// Streams converted audio to the server continuously so its sliding window
+    /// always holds the recent question. Drops frames when the socket backs up
+    /// instead of growing without bound.
+    /// </summary>
+    private void OnAudioDataAvailable(object? sender, byte[] pcm)
+    {
+        if (!_config.StreamContinuously || pcm.Length == 0) return;
+        if (!_viewModel.IsRecording) return;
+        if (!_wsService.IsConnected) return;
+        if (Interlocked.Read(ref _pendingAudioBytes) > MaxPendingAudioBytes) return;
+
+        Interlocked.Add(ref _pendingAudioBytes, pcm.Length);
+        _ = SendAudioSafeAsync(pcm);
+    }
+
+    private async Task SendAudioSafeAsync(byte[] pcm)
+    {
+        try
+        {
+            await _wsService.SendAudioAsync(pcm, _cts.Token);
+        }
+        catch (Exception)
+        {
+            // Disconnected or cancelled mid-send: the ring buffer still holds the
+            // audio, so nothing is lost from the presenter's point of view.
+        }
+        finally
+        {
+            Interlocked.Add(ref _pendingAudioBytes, -pcm.Length);
+        }
+    }
+
+    private async Task SendTopicAsync(string topic)
+    {
+        var trimmed = (topic ?? string.Empty).Trim();
+        if (trimmed.Length < 3 || trimmed.Length > 200) return;
+        try
+        {
+            await _wsService.SendTextAsync(
+                JsonSerializer.Serialize(new { type = "set_topic", topic = trimmed }), _cts.Token);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[MainWindow] set_topic failed: {ex.Message}");
+        }
+    }
+
     private async Task StartupAsync()
     {
         try
         {
-            await _wsService.ConnectAsync(_config.ServerUri, _cts.Token);
+            await _wsService.ConnectAsync(_config.ServerUri, _config.ApiToken, _cts.Token);
         }
         catch (Exception ex)
         {
@@ -169,21 +229,33 @@ public partial class MainWindow : Window
 
         try
         {
-            byte[] pcm = _audioService.GetLastSeconds(_config.AudioBufferSeconds);
-            if (pcm.Length == 0)
-            {
-                _viewModel.StatusMessage = "No audio captured yet";
-                _viewModel.IsBusy = false;
-                return;
-            }
-
             string requestId = Guid.NewGuid().ToString("N");
             _pendingRequestId = requestId;
-            // 1. Send raw PCM bytes (binary frame) → server buffers it
-            await _wsService.SendAudioAsync(pcm, _cts.Token);
 
-            // 2. Send trigger control message → server runs STT + RAG + LLM
-            await _wsService.SendTextAsync(JsonSerializer.Serialize(new { type = "trigger", request_id = requestId }), _cts.Token);
+            if (_config.StreamContinuously)
+            {
+                // Audio is already streaming; the server analyses the last
+                // `seconds` of its sliding window.
+                int seconds = Math.Clamp(_config.AudioBufferSeconds, 5, 90);
+                await _wsService.SendTextAsync(
+                    JsonSerializer.Serialize(new { type = "trigger", request_id = requestId, seconds }), _cts.Token);
+            }
+            else
+            {
+                byte[] pcm = _audioService.GetLastSeconds(_config.AudioBufferSeconds);
+                if (pcm.Length == 0)
+                {
+                    _viewModel.StatusMessage = "No audio captured yet";
+                    _pendingRequestId = null;
+                    _viewModel.IsBusy = false;
+                    return;
+                }
+
+                int seconds = Math.Clamp(_config.AudioBufferSeconds, 5, 90);
+                await _wsService.SendAudioAsync(pcm, _cts.Token);
+                await _wsService.SendTextAsync(
+                    JsonSerializer.Serialize(new { type = "trigger", request_id = requestId, seconds }), _cts.Token);
+            }
 
             Dispatcher.Invoke(() => _hudWindow?.ShowWithFade());
             _ = WatchRequestTimeoutAsync(requestId);
@@ -260,9 +332,12 @@ public partial class MainWindow : Window
                 : [];
 
             _viewModel.ApplySuggestion(keyPoint, keywords, steps, json, transcript);
-            _viewModel.RetrievedSources = root.TryGetProperty("retrieved_sources", out var sources) &&
+            var sourceList = root.TryGetProperty("retrieved_sources", out var sources) &&
                 sources.ValueKind == JsonValueKind.Array
-                ? string.Join(" · ", sources.EnumerateArray().Select(e => e.GetString())) : "";
+                ? sources.EnumerateArray().Select(e => e.GetString()).Where(s => !string.IsNullOrWhiteSpace(s)).ToArray()
+                : [];
+            _viewModel.RetrievedSources = sourceList.Length > 0
+                ? "Related sources: " + string.Join(" · ", sourceList) : "";
             if (root.TryGetProperty("timings_ms", out var timings) &&
                 timings.TryGetProperty("total", out var elapsed))
                 _viewModel.StatusMessage = $"Ready · {elapsed.GetInt32()} ms";
@@ -303,6 +378,8 @@ public partial class MainWindow : Window
     private void OpenSettings()
     {
         var previousUri = _config.ServerUri;
+        var previousToken = _config.ApiToken;
+        var previousTopic = _config.PresentationTopic;
         var previousBufferSeconds = _config.AudioBufferSeconds;
         var settings = new SettingsWindow(_config);
         settings.SettingsSaved += async (_, updatedConfig) =>
@@ -314,12 +391,18 @@ public partial class MainWindow : Window
             }
             if (previousBufferSeconds != updatedConfig.AudioBufferSeconds)
                 _audioService.Initialize(updatedConfig.AudioBufferSeconds);
-            if (previousUri != updatedConfig.ServerUri)
+
+            bool mustReconnect = previousUri != updatedConfig.ServerUri || previousToken != updatedConfig.ApiToken;
+            if (mustReconnect)
             {
                 _pendingRequestId = null;
                 _viewModel.IsBusy = false;
-                try { await _wsService.ConnectAsync(updatedConfig.ServerUri, _cts.Token); }
+                try { await _wsService.ConnectAsync(updatedConfig.ServerUri, updatedConfig.ApiToken, _cts.Token); }
                 catch (Exception ex) { _viewModel.StatusMessage = $"Connection failed: {ex.Message}"; }
+            }
+            else if (previousTopic != updatedConfig.PresentationTopic)
+            {
+                await SendTopicAsync(updatedConfig.PresentationTopic);
             }
         };
         settings.ShowDialog();

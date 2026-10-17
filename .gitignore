@@ -42,6 +42,14 @@ server/data/chroma/*
 !server/data/chroma/.gitkeep
 server/data/docs/*
 !server/data/docs/.gitkeep
+# Generated markdown bundles, temp audio, model cache and the auto-provisioned token
+server/data/exports/
+server/data/tmp/
+server/data/hf-cache/
+server/data/audio/
+server/data/audit*/
+server/data/admin-settings.json
+server/data/.api-token
 *.wav
 *.mp3
 *.pcm

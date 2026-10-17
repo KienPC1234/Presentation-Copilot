@@ -33,7 +33,7 @@ cd server
 python -m venv .venv
 .\.venv\Scripts\activate
 pip install -r requirements.txt
-copy .env.example .env
+python ../scripts/bootstrap_env.py    # creates .env with a generated API_TOKEN
 
 # Pull required local models
 ollama pull qwen2.5:7b
@@ -42,6 +42,22 @@ ollama pull nomic-embed-text
 # Run server
 uvicorn main:app --host 127.0.0.1 --port 8765 --reload
 ```
+
+### Docker alternative
+
+`server/docker-compose.yml` runs the server plus Ollama, GPU-first (CUDA wheels, `gpus: all`). It needs the NVIDIA Container Toolkit on the host; without a GPU, build with `INSTALL_CUDA=false` and set `WHISPER_DEVICE=cpu` (see [server/README.md](server/README.md#gpu)).
+
+Set `HOST_DOCS_ROOT` to the folder on the server machine that holds your project (mounted read-only at `/host`), then:
+
+```bash
+cd server
+docker compose up --build
+cat data/.api-token     # API key generated on first run
+```
+
+The container reaches services on the host (such as a host Ollama) at `http://host.docker.internal:<port>`.
+
+See [server/README.md](server/README.md) for mounts, the admin panel, document generation and cleanup.
 
 ### 2. Client Setup (C# / .NET 8)
 
@@ -55,6 +71,9 @@ dotnet run --project client\PresentationCopilot\PresentationCopilot.csproj
 
 The web interface provides real-time control over the engine:
 
+* **AI Markdown Documents**: Generate a cached defence pack (questions, rebuttal script, outline, cheat sheet and evidence appendix) as standard markdown files. Pre-generate topics in advance so they load instantly on stage.
+* **Server Folder Browser**: Pick any path on the server machine from the browser instead of typing it; only folders inside the configured mount are visible.
+* **Server Admin**: Rotate the API key, enable the opt-in agent bash/ingest tools, set panel defaults, and clean up temp files, old exports and logs.
 * **Repository Ingestion**: Input any local directory path (codebase, slide PDFs, documentation). Click `Verify Path & Permissions` to validate readability before indexing into ChromaDB. Supported formats include `.pdf`, `.md`, `.txt`, `.cs`, `.py`, `.ts`, `.js`, `.json`, `.sql`, `.yaml`.
 * **Language & STT Tuning**: Select target language (`vi`, `en`, `auto`, `ja`, `zh`) and configure vocabulary biasing prompts to prevent phonetic confusion on technical terms.
 * **Persona Selection**: Switch presets (`tech_hackathon`, `startup_pitch`, `academic_defense`, `custom`) to adapt suggestion style and metric depth.

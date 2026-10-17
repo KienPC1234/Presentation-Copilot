@@ -8,6 +8,7 @@ class Settings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=False,
+        extra="ignore",
     )
 
     # Ollama
@@ -17,6 +18,9 @@ class Settings(BaseSettings):
     ollama_answer_model: str = ""  # Empty uses ollama_model.
     ollama_review_model: str = ""  # Empty uses the answer model; no independence claim.
     llm_timeout_seconds: float = Field(default=45, gt=0, le=120)
+    llm_max_output_tokens: int = Field(default=4096, ge=256, le=32768)
+    # The markdown document pack is one large JSON; give it a bigger budget.
+    document_max_output_tokens: int = Field(default=16384, ge=1024, le=32768)
     ollama_json_disable_thinking: bool = True
     response_style: Literal["plain", "technical"] = "plain"
 
@@ -30,6 +34,9 @@ class Settings(BaseSettings):
     # Storage
     chroma_persist_dir: str = "./data/chroma"
     docs_dir: str = "./data/docs"
+    tmp_dir: str = "./data/tmp"
+    export_dir: str = "./data/exports"
+    data_dir: str = "./data"
 
     # Server
     host: str = "127.0.0.1"
@@ -37,8 +44,33 @@ class Settings(BaseSettings):
     api_token: str = ""
     max_audio_seconds: int = 90
 
+    # API token self-provisioning (used by Docker; see server/token_store.py)
+    token_file: str = "./data/.api-token"
+    auto_generate_token: bool = False
+
+    # Agent tool policy. Bash and index ingestion are powerful; keep them off
+    # unless an operator turns them on from the admin panel or .env.
+    agent_bash_enabled: bool = False
+    agent_ingest_enabled: bool = False
+    agent_max_iterations: int = Field(default=3, ge=1, le=8)
+    # How many times a failed review is repaired before refusing to answer.
+    agent_max_repairs: int = Field(default=3, ge=0, le=4)
+    bash_timeout_seconds: int = Field(default=15, ge=1, le=120)
+    bash_max_output_chars: int = Field(default=4000, ge=200, le=20000)
+
+    # Remote administration panel
+    # ``host_mount_root`` is the read-only bind mount of the server machine that
+    # the panel may browse and ingest from. Empty disables host-mount browsing.
+    host_mount_root: str = ""
+    admin_settings_file: str = "./data/admin-settings.json"
+    export_retention_days: int = Field(default=14, ge=0, le=3650)
+    cleanup_on_startup: bool = True
+
     # Audio
     audio_sample_rate: int = 16000
+    # Container/codec for the temporary file handed to Whisper. "m4a"/"ogg" encode
+    # Opus with ffmpeg (compact); the server falls back to "wav" automatically.
+    transcription_audio_format: Literal["m4a", "ogg", "wav"] = "m4a"
 
     # Logging
     log_level: str = "INFO"

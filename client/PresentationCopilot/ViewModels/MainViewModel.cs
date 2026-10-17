@@ -44,8 +44,15 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public string RetrievedSources
     {
         get => _retrievedSources;
-        set => SetField(ref _retrievedSources, value);
+        set
+        {
+            if (SetField(ref _retrievedSources, value))
+                OnPropertyChanged(nameof(HasSources));
+        }
     }
+
+    /// <summary>True when at least one related source was returned.</summary>
+    public bool HasSources => !string.IsNullOrWhiteSpace(_retrievedSources);
 
     private ObservableCollection<string> _frameworkSteps = [];
     public ObservableCollection<string> FrameworkSteps

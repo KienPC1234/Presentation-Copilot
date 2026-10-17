@@ -2,11 +2,16 @@
 Agent service: LangChain ReAct agent with tools for fast contextual answers.
 
 Tools available to the agent:
-  - rag_search   : Vector DB lookup against project documents & source code
-  - web_search   : DuckDuckGo search (market data, competitors, definitions)
-  - calculator   : Safe eval of arithmetic expressions
+  - rag_search       : Vector DB lookup against project documents & source code
+  - web_search       : DuckDuckGo search (market data, competitors, definitions)
+  - calculator       : Safe eval of arithmetic expressions
+  - ingest_documents : Index a file/folder into the knowledge base (opt-in)
+  - bash             : Bounded shell command in an allowed folder (opt-in)
 
-The agent uses a 3-iteration cap and a structured JSON output format.
+The agent uses a configurable iteration cap (default 3) and a structured JSON
+output format. ``ingest_documents`` and ``bash`` are disabled by default; an
+operator enables them from the admin panel, in which case project evidence may
+also be reached through the shell.
 """
 
 from __future__ import annotations
@@ -32,6 +37,8 @@ from services.evidence_filter import filter_evidence
 from services.response_quality import missing_requested_example
 from services.answer_review import review_answer
 from services.ollama_json import OllamaJSONClient
+from services.bash_tool import run as run_bash
+from services.path_browser import PathAccessError, allowed_roots, resolve_within_roots
 
 if TYPE_CHECKING:
     from services.context_manager import SessionContext
@@ -72,6 +79,8 @@ TOOLS:
 
 TOOL NAMES: {tool_names}
 
+{tool_hints}
+
 CONVERSATION HISTORY (last turns):
 {history}
 
@@ -91,7 +100,7 @@ INSTRUCTIONS:
 - Label any recommendation explicitly as a proposal; do not describe it as an existing feature.
 - Retrieve context from project documents/code via rag_search.
 - If calculation is needed (e.g. server costs, QPS, latency), use calculator.
-- Stop after at most 3 tool calls.
+- Stop as soon as you have enough evidence; the loop stops after a configured maximum.
 - Output MUST be valid JSON with keys:
   "key_point": direct answer in simple complete sentences,
   "keywords": an array of short strings (empty if unnecessary),
@@ -113,8 +122,8 @@ Question: {input}
 {agent_scratchpad}"""
 
 
-def _make_tools(rag: "RAGService") -> list:
-    """Build the tool list, closing over the RAG service."""
+def _make_tools(rag: "RAGService", settings) -> list:
+    """Build the tool list, closing over the RAG service and live settings."""
 
     @tool
     def rag_search(query: str) -> str:
@@ -176,6 +185,78 @@ def _make_tools(rag: "RAGService") -> list:
     return [rag_search, web_search, calculator]
 
 
+def _make_privileged_tools(rag: "RAGService", settings) -> list:
+    """Opt-in tools that can change the index or touch the host filesystem."""
+
+    @tool
+    def ingest_documents(path: str) -> str:
+        """Index a project file or folder into the knowledge base so rag_search can use it."""
+        roots = allowed_roots(settings)
+        if not roots:
+            return "Ingest refused: no browsable root is configured (set HOST_MOUNT_ROOT or DOCS_DIR)."
+        try:
+            target = str(resolve_within_roots(path.strip(), roots))
+        except (PathAccessError, OSError) as exc:
+            return f"Ingest refused: {exc}"
+        try:
+            result = rag.ingest_documents(target)
+        except Exception as exc:  # surface a readable tool observation, not a crash
+            logger.warning("Agent ingest failed: %s", exc)
+            return f"Ingest failed: {exc}"
+        return json.dumps(result, ensure_ascii=False)[:1200]
+
+    @tool
+    def bash(command: str) -> str:
+        """Run a bounded shell command inside an allowed project folder; returns exit code and output."""
+        return run_bash(command, settings)
+
+    return [ingest_documents, bash]
+
+
+def _tool_hints(tools: list) -> str:
+    names = {getattr(item, "name", getattr(item, "__name__", "")) for item in tools}
+    if {"bash", "ingest_documents"} & names:
+        return (
+            "ADDITIONAL TOOLS (enabled by the operator):\n"
+            "- ingest_documents(path): index a new file or folder so rag_search can cite it. "
+            "Use it when the question concerns files that are not in the retrieved evidence yet.\n"
+            "- bash(command): run a bounded shell command inside the project folder for inspection. "
+            "Prefer rag_search. Never use bash to rewrite source code, delete data, or change the index "
+            "outside ingest_documents. Commands are logged and screened."
+        )
+    return "Only the tools listed above are available; do not attempt shell or filesystem actions."
+
+
+# A context-free bare question ("Tại sao?", "why?", "it?") has no antecedent. The
+# model would otherwise attach it to whatever the top evidence chunk happens to
+# be, answering a different question. Ask instead of guessing.
+_VI_BARE = re.compile(
+    r"^\s*(?:tại sao|vì sao|sao|thế nào|như thế nào|làm sao|hả|gì|"
+    r"cái (?:đó|này|kia)|nó|điều (?:đó|này))\s*[?.!,]*\s*$", re.IGNORECASE)
+_EN_BARE = re.compile(
+    r"^\s*(?:why|how|what|which|who|when|where|it|that|this)\s*[?.!]*\s*$", re.IGNORECASE)
+_NO_HISTORY = "(no previous turns)"
+
+
+def needs_clarification(question: str, history_text: str) -> bool:
+    """True for a bare question with no antecedent and no conversation history."""
+    stripped = (question or "").strip()
+    if not stripped:
+        return False
+    history = (history_text or "").strip()
+    if history and history != _NO_HISTORY:
+        return False
+    return bool(_VI_BARE.match(stripped) or _EN_BARE.match(stripped))
+
+
+def clarification_answer(question: str) -> dict[str, Any]:
+    vietnamese = bool(re.search(r"[àáảãạăâđêôơư]|tại sao|vì sao|thế nào", question, re.IGNORECASE))
+    text = ("Câu hỏi chưa rõ đang nói về điểm nào. Bạn muốn hỏi cụ thể về phần nào?"
+            if vietnamese else
+            "The question is not specific enough yet. Which part do you mean?")
+    return {"key_point": text, "keywords": [], "framework_steps": []}
+
+
 class AgentService:
     """LangChain ReAct agent with dynamic persona and live tools."""
 
@@ -183,7 +264,7 @@ class AgentService:
         self._rag = rag
         self._current_persona_key: str = "tech_hackathon"
         self._custom_persona_text: str = ""
-        self._tools = _make_tools(rag)
+        self._tools = self._build_tools()
         self._llm = ChatOllama(
             base_url=settings.ollama_base_url,
             model=settings.ollama_model,
@@ -195,7 +276,44 @@ class AgentService:
         self._plain_llm = OllamaJSONClient(model=answer_model)
         self._review_llm = OllamaJSONClient(model=settings.ollama_review_model or answer_model)
         self._rebuild_executor()
-        logger.info("AgentService ready with persona '%s'", self._current_persona_key)
+        logger.info("AgentService ready with persona '%s' (tools: %s)",
+                    self._current_persona_key, self.tool_names())
+
+    # ── Tools ──────────────────────────────────────────────────────────────
+
+    def _build_tools(self) -> list:
+        tools = _make_tools(self._rag, settings)
+        ingest_tool, bash_tool = _make_privileged_tools(self._rag, settings)
+        if getattr(settings, "agent_ingest_enabled", False):
+            tools.append(ingest_tool)
+        if getattr(settings, "agent_bash_enabled", False):
+            tools.append(bash_tool)
+        return tools
+
+    def tool_names(self) -> list[str]:
+        return [getattr(item, "name", getattr(item, "__name__", "")) for item in self._tools]
+
+    def set_tool_policy(self, *, bash_enabled: bool | None = None,
+                        ingest_enabled: bool | None = None,
+                        max_iterations: int | None = None) -> None:
+        """Apply an operator tool policy and rebuild the ReAct executor."""
+        if bash_enabled is not None:
+            settings.agent_bash_enabled = bool(bash_enabled)
+        if ingest_enabled is not None:
+            settings.agent_ingest_enabled = bool(ingest_enabled)
+        if max_iterations is not None:
+            settings.agent_max_iterations = max(1, min(8, int(max_iterations)))
+        self._tools = self._build_tools()
+        self._rebuild_executor()
+        logger.info("Agent tool policy updated: %s", self.tool_names())
+
+    def get_tool_policy(self) -> dict[str, Any]:
+        return {
+            "tools": self.tool_names(),
+            "bash_enabled": bool(getattr(settings, "agent_bash_enabled", False)),
+            "ingest_enabled": bool(getattr(settings, "agent_ingest_enabled", False)),
+            "max_iterations": int(getattr(settings, "agent_max_iterations", 3)),
+        }
 
     def _get_active_persona(self) -> str:
         if self._current_persona_key == "custom" and self._custom_persona_text:
@@ -206,13 +324,14 @@ class AgentService:
         persona = self._get_active_persona()
         style = getattr(settings, "response_style", "plain")
         prompt = PromptTemplate.from_template(_BASE_TEMPLATE).partial(
-            persona=persona, response_style=RESPONSE_STYLES[style])
+            persona=persona, response_style=RESPONSE_STYLES[style],
+            tool_hints=_tool_hints(self._tools))
         agent = create_react_agent(self._llm, self._tools, prompt,
                                    output_parser=StructuredReActParser())
         self._executor = AgentExecutor(
             agent=agent,
             tools=self._tools,
-            max_iterations=3,
+            max_iterations=int(getattr(settings, "agent_max_iterations", 3)),
             handle_parsing_errors=True,
             verbose=False,
             return_intermediate_steps=True,
@@ -245,6 +364,17 @@ class AgentService:
         topic = ctx.get_fact("presentation_topic")
         review_codes = []
 
+        if needs_clarification(question, history_text):
+            logger.info("Bare context-free question; asking for clarification instead of guessing")
+            parsed: dict[str, Any] = clarification_answer(question)
+            parsed["review_status"] = "clarification"
+            parsed["retrieved_sources"] = []
+            if include_evidence:
+                parsed["retrieved_chunks"] = []
+            ctx.add_user(question)
+            ctx.add_assistant(parsed["key_point"])
+            return parsed
+
         try:
             if not question.strip() or len(question) > 12000:
                 raise ValueError("Invalid question length")
@@ -264,9 +394,9 @@ class AgentService:
             for action, observation in result.get("intermediate_steps", []):
                 if action.tool == "rag_search" and isinstance(observation, str):
                     observed.extend(filter_evidence(observation.split("\n---\n")))
-                elif action.tool in ("calculator", "web_search"):
-                    tool_facts.append({"tool": action.tool, "input": action.tool_input,
-                                       "result": str(observation)})
+                elif action.tool in ("calculator", "web_search", "bash", "ingest_documents"):
+                    tool_facts.append({"tool": action.tool, "input": str(action.tool_input)[:500],
+                                       "result": str(observation)[:1500]})
             if getattr(settings, "response_style", "plain") in RESPONSE_STYLES:
                 messages = [
                     SystemMessage(content=RESPONSE_STYLES[getattr(settings, "response_style", "plain")] + "\n"
@@ -314,21 +444,25 @@ class AgentService:
             else:
                 parsed = _parse_agent_output(result.get("output", ""))
             issues = review_answer(self._review_llm, question, parsed, observed, tool_facts, history_text, topic)
-            if issues:
+            # Bounded repair loop. A single repair is not always enough because the
+            # cloud reviewer is non-deterministic; retry a few times with the
+            # remaining issues, then refuse rather than show a failed answer.
+            max_repairs = max(0, int(getattr(settings, "agent_max_repairs", 3)))
+            repairs = 0
+            while issues and repairs < max_repairs:
+                repairs += 1
                 review_codes = list(dict.fromkeys(item["code"] for item in issues))
-                logger.warning("Answer requires repair: %s", review_codes)
-                # One repair, then a fresh second review (possibly same model).
-                # Never display or remember an answer that still fails review.
+                logger.warning("Answer requires repair (%d/%d): %s", repairs, max_repairs, review_codes)
                 repaired = self._plain_llm.invoke(messages + [HumanMessage(content=json.dumps({
                     "candidate_to_correct": parsed, "review_issues": issues,
                     "task": "Rewrite the complete answer from original evidence and question. Resolve ALL review issues, including every requested subquestion. Remove unsupported claims; do not merely add disclaimers to them. Label proposals explicitly. Return complete corrected JSON."
                 }, ensure_ascii=False))])
                 parsed = parse_suggestion(repaired.content)
-                remaining = review_answer(self._review_llm, question, parsed, observed, tool_facts, history_text, topic)
-                if remaining:
-                    review_codes = list(dict.fromkeys(item["code"] for item in remaining))
-                    logger.warning("Answer rejected after repair: %s", review_codes)
-                    raise ValueError("Answer did not pass evidence/language/completeness review")
+                issues = review_answer(self._review_llm, question, parsed, observed, tool_facts, history_text, topic)
+            if issues:
+                review_codes = list(dict.fromkeys(item["code"] for item in issues))
+                logger.warning("Answer rejected after %d repair(s): %s", repairs, review_codes)
+                raise ValueError("Answer did not pass evidence/language/completeness review")
             parsed["review_status"] = "model_reviewed"
             parsed["retrieved_sources"] = list(dict.fromkeys(
                 item.split("]", 1)[0] + "]" for item in observed

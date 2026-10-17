@@ -33,13 +33,26 @@ Edit `PresentationCopilot/appsettings.json` before building:
 ```json
 {
   "ServerUri":          "ws://localhost:8765",
+  "ApiToken":           "",
+  "PresentationTopic":  "",
   "HotKey":             "Ctrl+Shift+Space",
   "HotKeyModifiers":    6,
   "HotKeyCode":         32,
-  "AudioBufferSeconds": 12,
-  "OpacityLevel":       0.88
+  "AudioBufferSeconds": 20,
+  "OpacityLevel":       0.88,
+  "StreamContinuously": true
 }
 ```
+
+| Field | Meaning |
+|---|---|
+| `ServerUri` | WebSocket endpoint of the server (`ws://` locally, `wss://` across untrusted networks) |
+| `ApiToken` | Must match `API_TOKEN` on the server; empty falls back to `PRESENTATION_COPILOT_API_TOKEN` |
+| `PresentationTopic` | Optional product/topic name sent once so retrieval is anchored |
+| `AudioBufferSeconds` | Seconds analysed on each hotkey press (5–90) |
+| `StreamContinuously` | Stream audio while connected so the server always holds the recent question |
+
+You can also set these from the tray icon → **Settings…**, which saves to `%LOCALAPPDATA%/PresentationCopilot/appsettings.json`. The token is stored there as plain text; keep that file private.
 
 ### Hotkey Reference
 
@@ -83,9 +96,10 @@ MainWindow (tray host)
 
 ### Data Flow
 
-1. System audio continuously captured and stored in a circular ring buffer (default 12 s).
-2. **Hotkey pressed** → last N seconds of PCM grabbed from ring buffer → sent as binary WebSocket frame.
-3. Python server processes audio → returns JSON:
+1. System audio is continuously captured and converted to 16 kHz mono PCM into a local ring buffer.
+2. When `StreamContinuously` is on (default), the PCM is also streamed to the server as binary WebSocket frames, so the server's rolling window always holds the recent audio. Frames are dropped (never queued without bound) if the socket backs up.
+3. **Hotkey pressed** → the client sends `{"type":"trigger","request_id":"…","seconds":N}`; the server analyses the last N seconds of its window and clears it, so an earlier question cannot leak into this answer. With streaming off, the client first sends the last N seconds of its local ring buffer.
+4. Python server processes audio → returns JSON:
    ```json
    {
      "key_point": "Explain the architecture clearly",

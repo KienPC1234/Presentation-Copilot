@@ -1,10 +1,20 @@
 import json
 import unittest
 
-from services.answer_review import deterministic_issues, parse_review
+from services.answer_review import deterministic_issues, drop_self_contradictory, parse_review
 
 
 class AnswerReviewTests(unittest.TestCase):
+    def test_self_contradictory_unsupported_claim_is_dropped(self):
+        issues = [
+            {"code": "unsupported_claim",
+             "detail": "The candidate states X. The evidence supports this: README.md says 'Automatic backup'."},
+            {"code": "unsupported_claim", "detail": "The endpoint /api/change_id is not in the excerpts."},
+            {"code": "missing_part", "detail": "The evidence supports this part is missing."},
+        ]
+        kept = drop_self_contradictory(issues)
+        self.assertEqual([item["code"] for item in kept], ["unsupported_claim", "missing_part"])
+
     def test_valid_empty_review(self):
         self.assertEqual(parse_review('{"issues": []}'), [])
         self.assertEqual(parse_review('```json\n{"issues": []}\n```'), [])

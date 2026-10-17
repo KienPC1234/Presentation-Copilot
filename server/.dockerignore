@@ -1,0 +1,13 @@
+# Keep the image and build context small; these are recreated at runtime.
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+tests/
+data/
+.env
+*.wav
+*.mp3
+*.pcm
+*.log

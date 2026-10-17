@@ -20,7 +20,10 @@ public partial class SettingsWindow : Window
     private void LoadCurrentValues()
     {
         TxtServerUri.Text = _config.ServerUri;
+        TxtApiToken.Password = _config.ApiToken;
+        TxtTopic.Text = _config.PresentationTopic;
         TxtHotkey.Text = _config.HotKey;
+        ChkStream.IsChecked = _config.StreamContinuously;
 
         SliderOpacity.Value = _config.OpacityLevel;
         TxtOpacityValue.Text = $"{_config.OpacityLevel:P0}";
@@ -56,6 +59,9 @@ public partial class SettingsWindow : Window
         }
 
         _config.ServerUri = uri;
+        _config.ApiToken = TxtApiToken.Password.Trim();
+        _config.PresentationTopic = TxtTopic.Text.Trim();
+        _config.StreamContinuously = ChkStream.IsChecked == true;
         _config.OpacityLevel = Math.Round(SliderOpacity.Value, 2);
         _config.AudioBufferSeconds = (int)SliderBuffer.Value;
 
