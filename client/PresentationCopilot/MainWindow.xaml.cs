@@ -419,6 +419,13 @@ public partial class MainWindow : Window
             }
             if (type == "transcript")
             {
+                // Prefer the normalizer agent's clean question for readability.
+                string cleaned = root.TryGetProperty("normalized", out var normalizedProp)
+                    ? normalizedProp.GetString() ?? "" : "";
+                if (string.IsNullOrWhiteSpace(cleaned))
+                    cleaned = root.TryGetProperty("transcript", out var rawProp) ? rawProp.GetString() ?? "" : "";
+                if (!string.IsNullOrWhiteSpace(cleaned))
+                    _viewModel.QuestionText = cleaned;
                 _viewModel.StatusMessage = "Generating response…";
                 return;
             }
@@ -432,6 +439,9 @@ public partial class MainWindow : Window
             if (type != "suggestion") return;
 
             string transcript = root.TryGetProperty("transcript", out var tr) ? tr.GetString() ?? "" : "";
+            string questionText = root.TryGetProperty("normalized_question", out var nq)
+                && !string.IsNullOrWhiteSpace(nq.GetString())
+                ? nq.GetString()! : transcript;
             string keyPoint = root.TryGetProperty("key_point", out var kp) ? kp.GetString() ?? "" : "";
             string[] keywords = root.TryGetProperty("keywords", out var kw)
                 ? kw.EnumerateArray().Select(e => e.GetString() ?? "").ToArray()
@@ -440,7 +450,7 @@ public partial class MainWindow : Window
                 ? fs.EnumerateArray().Select(e => e.GetString() ?? "").ToArray()
                 : [];
 
-            _viewModel.ApplySuggestion(keyPoint, keywords, steps, transcript);
+            _viewModel.ApplySuggestion(keyPoint, keywords, steps, questionText);
             var sourceList = root.TryGetProperty("retrieved_sources", out var sources) &&
                 sources.ValueKind == JsonValueKind.Array
                 ? sources.EnumerateArray().Select(e => e.GetString()).Where(s => !string.IsNullOrWhiteSpace(s)).ToArray()

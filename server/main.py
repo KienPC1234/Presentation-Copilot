@@ -30,6 +30,7 @@ from services.transcriber import TranscriberService
 from services.defense_service import DefenseService
 from services.document_service import DocumentService
 from services.document_kinds import DOCUMENT_KINDS, KIND_LABELS, LANGUAGES
+from services.question_normalizer import QuestionNormalizer
 from services import audio_buffer, maintenance, path_browser
 from services.live_caption import should_emit
 
@@ -49,6 +50,7 @@ _transcriber: TranscriberService | None = None
 _rag: RAGService | None = None
 _agent: AgentService | None = None
 _documents: DocumentService | None = None
+_normalizer: QuestionNormalizer | None = None
 _ctx_registry: ContextRegistry = ContextRegistry(max_turns_per_session=10)
 _token_store = TokenStore(settings)
 _admin_settings = AdminSettingsStore(settings)
@@ -64,12 +66,14 @@ def _apply_agent_policy() -> None:
         ingest_enabled=policy["agent_ingest_enabled"],
         max_iterations=policy["agent_max_iterations"],
     )
+    settings.question_normalizer_enabled = policy.get("question_normalizer_enabled",
+                                                      settings.question_normalizer_enabled)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Initialise core services once at startup."""
-    global _transcriber, _rag, _agent, _documents  # noqa: PLW0603
+    global _transcriber, _rag, _agent, _documents, _normalizer  # noqa: PLW0603
 
     logger.info("Initializing Presentation Copilot server …")
     Path(settings.tmp_dir).mkdir(parents=True, exist_ok=True)
@@ -91,6 +95,7 @@ async def lifespan(app: FastAPI):
     _apply_agent_policy()
 
     _documents = DocumentService(_rag)
+    _normalizer = QuestionNormalizer()
 
     logger.info("All services loaded. Server ready.")
     yield
@@ -152,18 +157,34 @@ async def _run_pipeline(pcm_buffer: bytes, session_id: str, request_id: str,
     start = time.perf_counter()
     transcript = await asyncio.to_thread(_blocking_transcribe, pcm_buffer)
     stt_ms = round((time.perf_counter() - start) * 1000)
-    await send_update({"type": "transcript", "request_id": request_id,
-                       "transcript": transcript, "stt_ms": stt_ms})
     if not transcript.strip():
+        await send_update({"type": "transcript", "request_id": request_id,
+                           "transcript": transcript, "normalized": transcript, "stt_ms": stt_ms})
         return {"type": "error", "request_id": request_id, "message": "No speech detected"}
+
     ctx = _ctx_registry.get_or_create(session_id)
-    suggestion = await asyncio.to_thread(_agent.run, transcript, ctx)  # type: ignore[union-attr]
+
+    # A dedicated agent rewrites the noisy transcript into one readable question
+    # before retrieval and answering. Failure keeps the raw transcript.
+    normalized = transcript
+    if settings.question_normalizer_enabled and _normalizer is not None:
+        topic = ctx.get_fact("presentation_topic") or ""
+        try:
+            normalised_result = await asyncio.to_thread(_normalizer.normalize, transcript, topic)
+            normalized = (normalised_result.get("question") or transcript).strip() or transcript
+        except Exception:
+            logger.warning("Question normalizer raised; using the raw transcript", exc_info=True)
+    await send_update({"type": "transcript", "request_id": request_id,
+                       "transcript": transcript, "normalized": normalized, "stt_ms": stt_ms})
+
+    suggestion = await asyncio.to_thread(_agent.run, normalized, ctx)  # type: ignore[union-attr]
     if suggestion.get("error"):
         return {"type": "error", "request_id": request_id, "message": suggestion["error"]}
     total_ms = round((time.perf_counter() - start) * 1000)
     logger.info("Analysis %s: STT=%d ms, agent=%d ms, total=%d ms",
                 request_id, stt_ms, total_ms - stt_ms, total_ms)
     return {"type": "suggestion", "request_id": request_id, "transcript": transcript,
+            "normalized_question": normalized,
             "timings_ms": {"stt": stt_ms, "agent": total_ms - stt_ms, "total": total_ms},
             **suggestion}
 

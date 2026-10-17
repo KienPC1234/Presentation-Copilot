@@ -64,6 +64,7 @@ class AdminSettingsStore:
             "agent_max_iterations": self._settings.agent_max_iterations,
             "live_caption_enabled": self._settings.live_caption_enabled,
             "live_caption_interval_seconds": self._settings.live_caption_interval_seconds,
+            "question_normalizer_enabled": self._settings.question_normalizer_enabled,
         }
 
     def _load(self) -> None:
@@ -109,7 +110,7 @@ class AdminSettingsStore:
             raise ValueError("Retention days must be between 0 and 3650")
 
         for flag in ("auto_prebuild", "cleanup_on_startup", "agent_bash_enabled", "agent_ingest_enabled",
-                     "live_caption_enabled"):
+                     "live_caption_enabled", "question_normalizer_enabled"):
             if not isinstance(data.get(flag), bool):
                 raise ValueError(f"{flag} must be a boolean")
 
@@ -141,6 +142,7 @@ class AdminSettingsStore:
             "agent_max_iterations": iterations,
             "live_caption_enabled": data["live_caption_enabled"],
             "live_caption_interval_seconds": float(interval),
+            "question_normalizer_enabled": data["question_normalizer_enabled"],
         }
 
     # ── Public API ─────────────────────────────────────────────────────────

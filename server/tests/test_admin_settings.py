@@ -18,6 +18,7 @@ def make_settings(tmp: str):
         agent_max_iterations=3,
         live_caption_enabled=False,
         live_caption_interval_seconds=2.5,
+        question_normalizer_enabled=True,
     )
 
 

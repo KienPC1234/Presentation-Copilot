@@ -55,6 +55,10 @@ class Settings(BaseSettings):
     agent_max_iterations: int = Field(default=3, ge=1, le=8)
     # How many times a failed review is repaired before refusing to answer.
     agent_max_repairs: int = Field(default=3, ge=0, le=4)
+    # A dedicated agent rewrites the raw transcript into one readable question
+    # before retrieval and answering (fillers, repeats, ASR slips).
+    question_normalizer_enabled: bool = True
+    question_normalizer_model: str = ""  # empty uses the answer model
     bash_timeout_seconds: int = Field(default=15, ge=1, le=120)
     bash_max_output_chars: int = Field(default=4000, ge=200, le=20000)
 

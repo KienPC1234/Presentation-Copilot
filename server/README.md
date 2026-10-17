@@ -324,9 +324,9 @@ On `trigger` the server takes the last `seconds` of that window, transcribes it,
 | `type` | Additional fields | Description |
 |---|---|---|
 | `"processing"` | `request_id` | Sent immediately after trigger |
-| `"transcript"` | `request_id`, `transcript`, `stt_ms` | Sent after STT, before agent completion |
+| `"transcript"` | `request_id`, `transcript`, `normalized`, `stt_ms` | Sent after STT; `normalized` is the normalizer agent's readable question |
 | `"caption"` | `text`, `final` | Partial transcript pushed while streaming, when live captions are enabled |
-| `"suggestion"` | `request_id`, `transcript`, `key_point`, `keywords`, `framework_steps`, `retrieved_sources`, `timings_ms` | Full pipeline result |
+| `"suggestion"` | `request_id`, `transcript`, `normalized_question`, `key_point`, `keywords`, `framework_steps`, `retrieved_sources`, `timings_ms` | Full pipeline result |
 | `"error"` | `message` | Error detail |
 | `"ping"` | — | Heartbeat every 30 s |
 | `"cleared"` | — | Acknowledgement of `clear` request |

@@ -1,5 +1,13 @@
 # Cập nhật: bảo mật, độ ổn định và kiểm tra logic AI
 
+## Agent chuẩn hoá câu hỏi riêng — 2026-10-17
+
+- `services/question_normalizer.py`: một agent LLM **riêng** viết lại transcript thô thành MỘT câu hỏi rõ ràng, có dấu câu, dễ đọc; gộp câu lặp, bỏ từ đệm, sửa lỗi ASR rõ ràng của thuật ngữ khi đề tài đã chỉ rõ ý định. Tuyệt đối không thêm dữ kiện/số/tính năng, không trả lời, không dịch; nếu provider lỗi hoặc đầu ra không hợp lệ thì giữ nguyên transcript.
+- Chạy trong `_run_pipeline` sau STT, trước RAG và agent trả lời. Sự kiện `transcript` có thêm trường `normalized`; kết quả `suggestion` có thêm `normalized_question`.
+- Client hiển thị **câu đã chuẩn hoá** trên HUD thay vì transcript thô (đọc dễ hơn).
+- Bật/tắt trong panel **SERVER ADMIN → Panel defaults** hoặc `QUESTION_NORMALIZER_ENABLED`; đổi model riêng bằng `QUESTION_NORMALIZER_MODEL` (trống thì dùng model trả lời).
+- Ví dụ chạy thật: `"Xin chào, bây giờ bài kìm cháy ấn văn văn nổi cho mưu ân."` → `"Xin chào, bài kiểm tra cháy ấn văn văn nổi cho mưu ân là gì?"`, và engine hỏi lại chỗ chưa rõ thay vì bịa. **162 test OK** trong container.
+
 ## Trả lời rõ hơn: lọc câu lặp ASR + prompt chốt ý — 2026-10-17
 
 - `services/transcript.py`: gộp câu mà Whisper lặp lại (trùng khớp, hoặc là tiền tố ≥12 ký tự của một câu trong 8 câu gần nhất) và khối từ lặp sát nhau (≥3 từ). Gọi trong `transcriber.transcribe` nên cả phụ đề lẫn câu trả lời đều sạch — đây là nguyên nhân chính khiến câu trả lời bị "mơ hồ" khi người dùng nói (ASR lặp nguyên một câu và đọc sai số).
