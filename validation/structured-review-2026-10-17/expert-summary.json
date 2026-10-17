@@ -9,18 +9,17 @@
   "suite": "acceptance",
   "runs": 1,
   "elapsed_seconds": 23.6,
+  "all_requests_p95_seconds": 23.59,
+  "percentile_method": "nearest rank; includes blocked requests; not semantic accuracy",
   "valid_answers": 7,
   "blocked_or_failed_answers": 1,
   "execution_gate_passed": false,
-  "all_requests_p95_seconds": 23.59,
-  "percentile_method": "nearest rank; includes blocked requests; not semantic accuracy",
   "answers": [
     {
       "run": 1,
       "role": "draft_access_deadline",
       "seconds": 13.05,
       "is_error": false,
-      "error_code": null,
       "review_status": "model_reviewed"
     },
     {
@@ -28,7 +27,6 @@
       "role": "callee_body_missing",
       "seconds": 12.11,
       "is_error": false,
-      "error_code": null,
       "review_status": "model_reviewed"
     },
     {
@@ -36,7 +34,6 @@
       "role": "empty_submission_key",
       "seconds": 12.92,
       "is_error": false,
-      "error_code": null,
       "review_status": "model_reviewed"
     },
     {
@@ -44,7 +41,6 @@
       "role": "deadline_calculation",
       "seconds": 14.8,
       "is_error": false,
-      "error_code": null,
       "review_status": "model_reviewed"
     },
     {
@@ -52,7 +48,6 @@
       "role": "timestamp_race",
       "seconds": 16.56,
       "is_error": false,
-      "error_code": null,
       "review_status": "model_reviewed"
     },
     {
@@ -60,7 +55,6 @@
       "role": "strict_deadline_boundary",
       "seconds": 22.83,
       "is_error": false,
-      "error_code": null,
       "review_status": "model_reviewed"
     },
     {
@@ -68,16 +62,15 @@
       "role": "demo_not_service_proof",
       "seconds": 16.9,
       "is_error": false,
-      "error_code": null,
       "review_status": "model_reviewed"
     },
     {
       "run": 1,
       "role": "staged_rollout_preserve_new_work",
       "seconds": 23.59,
-      "is_error": false,
-      "error_code": null,
+      "is_error": true,
       "review_status": null
     }
-  ]
+  ],
+  "export_schema": 1
 }

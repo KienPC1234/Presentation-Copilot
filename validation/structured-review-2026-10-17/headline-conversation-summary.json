@@ -1,0 +1,110 @@
+{
+  "scope": "Real-model interleaved follow-ups on supplied project evidence.\n\nQuestions and poisoned history are synthetic test inputs. This is not a\nrecorded meeting, network test, or automatic semantic accuracy score.\n",
+  "model": "gpt-oss:120b-cloud",
+  "answer_model": "gemma4:31b-cloud",
+  "review_model": "gemma4:31b-cloud",
+  "evidence_sha256": "dec463ad64f894f46c12a680c47abbfed23a8d153f398bfcbf54c8a192f20199",
+  "semantic_acceptance": "requires manual source comparison",
+  "checks": [
+    {
+      "check": "other_history_unchanged:signals",
+      "passed": true
+    },
+    {
+      "check": "other_history_unchanged:capacity",
+      "passed": true
+    },
+    {
+      "check": "other_history_unchanged:appeal_followup",
+      "passed": true
+    },
+    {
+      "check": "other_history_unchanged:deadline",
+      "passed": true
+    },
+    {
+      "check": "other_history_unchanged:poisoned_followup",
+      "passed": true
+    },
+    {
+      "check": "other_history_unchanged:deadline_correction",
+      "passed": true
+    },
+    {
+      "check": "reset_clears_history_and_facts",
+      "passed": true
+    },
+    {
+      "check": "reset_preserves_other_session",
+      "passed": true
+    },
+    {
+      "check": "other_history_unchanged:after_reset",
+      "passed": true
+    },
+    {
+      "check": "other_history_unchanged:design_reason",
+      "passed": true
+    }
+  ],
+  "execution_passed": false,
+  "results": [
+    {
+      "session": "a",
+      "case": "signals",
+      "seconds": 4.53,
+      "is_error": false,
+      "review_status": "model_reviewed"
+    },
+    {
+      "session": "b",
+      "case": "capacity",
+      "seconds": 7.53,
+      "is_error": false,
+      "review_status": "model_reviewed"
+    },
+    {
+      "session": "a",
+      "case": "appeal_followup",
+      "seconds": 12.82,
+      "is_error": false,
+      "review_status": "model_reviewed"
+    },
+    {
+      "session": "b",
+      "case": "deadline",
+      "seconds": 5.65,
+      "is_error": false,
+      "review_status": "model_reviewed"
+    },
+    {
+      "session": "a",
+      "case": "poisoned_followup",
+      "seconds": 11.6,
+      "is_error": true,
+      "review_status": null
+    },
+    {
+      "session": "b",
+      "case": "deadline_correction",
+      "seconds": 9.75,
+      "is_error": false,
+      "review_status": "model_reviewed"
+    },
+    {
+      "session": "a",
+      "case": "after_reset",
+      "seconds": 4.64,
+      "is_error": false,
+      "review_status": "model_reviewed"
+    },
+    {
+      "session": "b",
+      "case": "design_reason",
+      "seconds": 5.87,
+      "is_error": false,
+      "review_status": "model_reviewed"
+    }
+  ],
+  "export_schema": 1
+}

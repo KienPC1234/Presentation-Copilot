@@ -1,5 +1,46 @@
 # Kiểm tra AI có dẫn chứng — 2026-10-17
 
+## Vòng tiếp theo: điều kiện trong kết luận và độ đúng báo cáo
+
+- Composer/reviewer được yêu cầu đánh giá kết luận đầu câu độc lập: phần sau
+  không sửa được một khẳng định đầu câu sai hoặc thiếu điều kiện. Thêm cặp câu
+  đúng/sai về clamp công thức và phân biệt bỏ qua truy cập với giới hạn deadline.
+- Lần chạy hiệu chỉnh 18/18 khớp kỳ vọng. Hai lượt bộ 8 câu thực tế có 15/16
+  không lỗi, p95 28,98 giây; đọc tay vẫn phát hiện lỗi ngữ nghĩa. Hội thoại 7/8
+  không lỗi, 10 kiểm tra ngữ cảnh qua; lịch sử sai vẫn làm câu trả lời bị chặn.
+- Lỗi còn lọt: tự đặt ngưỡng lỗi 1%, nói demo chứng minh tính đúng chức năng,
+  gán nhầm phần mã bị thiếu, công thức ở phần bước thiếu điều kiện ends_at hợp
+  lệ. Đề xuất dual-write/rollback chưa đủ chứng minh bảo toàn bài làm mới.
+  Đây là bằng chứng chưa đạt; tỷ lệ engine cho qua không đo độ đúng.
+- Sửa nguyên nhân ngưỡng 1%: số 1 trần trong mã không được dùng làm nguồn cho
+  phần trăm. Không tuyên bố đã kiểm tra toàn bộ phép đổi đơn vị hoặc quan hệ
+  hỗ trợ. Thêm một phản ví dụ thành bộ 19 câu: 18 khớp, một câu đúng bị lỗi
+  giao thức review; không chạy lại chỉ để thay số thất bại bằng số đẹp.
+- 118 regression test qua, 5,262 giây. Các phép đo 16 câu/hội thoại ở trên
+  chạy trước sửa phần trăm; giữ báo cáo riêng để không trộn cấu hình.
+- Sau sửa phần trăm, chạy riêng câu triển khai hai lượt: 2/2 không lỗi, p95
+  10,38 giây, một lượt phải sửa vì ngưỡng tùy ý. Đọc tay: ngưỡng 1% đã biến mất,
+  nhưng cả hai vẫn nhầm dừng thử nghiệm khi đạt mục tiêu với dừng mở rộng khi
+  có sự cố; phương án migration/dual-write cũng chưa chứng minh giữ dữ liệu.
+  Do đó phép thử này **không đạt ngữ nghĩa**, dù execution gate của runner qua.
+- Sửa lỗi xuất báo cáo checkpoint trước: tổng 7/8 đã đúng, nhưng cờ lỗi từng
+  lượt đọc nhầm `is_error` thay vì trường `error` thật của engine. Hai JSON
+  `expert-summary.json` và `conversation-summary.json` đã được đính chính.
+  `server/export_evaluation_summary.py` xuất theo danh sách trường cho phép,
+  đối chiếu tổng với từng lượt và từ chối báo cáo mâu thuẫn. Không xuất nội dung
+  câu trả lời, lỗi riêng, câu hỏi hoặc trace. Thêm test cho lỗi lồng, exception,
+  thiếu answer, sai tổng và ngăn nội dung riêng lọt vào bản công khai.
+
+Để xuất số liệu từ báo cáo riêng:
+
+```sh
+python export_evaluation_summary.py --input /private/expert.json --output /public/expert-summary.json
+```
+
+Các mục dưới đây mô tả checkpoint trước; số liệu mới nằm ở các tệp
+`headline-*` và `percent-guard-*` trong cùng thư mục validation. Chưa đóng cổng
+nghiệm thu nào chỉ dựa trên vòng này.
+
 **Chưa nghiệm thu professional.** Đây là checkpoint phát triển; tiêu chí trong
 [PROFESSIONAL_ACCEPTANCE.md](PROFESSIONAL_ACCEPTANCE.md) vẫn giữ nguyên.
 

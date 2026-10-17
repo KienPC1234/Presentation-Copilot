@@ -1,0 +1,132 @@
+{
+  "scope": "Generated Vietnamese expert questions; real RAG/model; concurrent independent agent sessions, not network or acoustic meeting test; semantic review required",
+  "model": "gpt-oss:120b-cloud",
+  "answer_model": "gemma4:31b-cloud",
+  "review_model": "gemma4:31b-cloud",
+  "style": "technical",
+  "workers": 8,
+  "evidence_sha256": "dec463ad64f894f46c12a680c47abbfed23a8d153f398bfcbf54c8a192f20199",
+  "suite": "acceptance",
+  "runs": 2,
+  "elapsed_seconds": 54.98,
+  "all_requests_p95_seconds": 28.98,
+  "percentile_method": "nearest rank; includes blocked requests; not semantic accuracy",
+  "valid_answers": 15,
+  "blocked_or_failed_answers": 1,
+  "execution_gate_passed": false,
+  "answers": [
+    {
+      "run": 1,
+      "role": "draft_access_deadline",
+      "seconds": 15.21,
+      "is_error": false,
+      "review_status": "model_reviewed"
+    },
+    {
+      "run": 1,
+      "role": "callee_body_missing",
+      "seconds": 24.83,
+      "is_error": false,
+      "review_status": "model_reviewed"
+    },
+    {
+      "run": 1,
+      "role": "empty_submission_key",
+      "seconds": 15.76,
+      "is_error": false,
+      "review_status": "model_reviewed"
+    },
+    {
+      "run": 1,
+      "role": "deadline_calculation",
+      "seconds": 16.36,
+      "is_error": false,
+      "review_status": "model_reviewed"
+    },
+    {
+      "run": 1,
+      "role": "timestamp_race",
+      "seconds": 6.36,
+      "is_error": true,
+      "review_status": null
+    },
+    {
+      "run": 1,
+      "role": "strict_deadline_boundary",
+      "seconds": 28.98,
+      "is_error": false,
+      "review_status": "model_reviewed"
+    },
+    {
+      "run": 1,
+      "role": "demo_not_service_proof",
+      "seconds": 18.7,
+      "is_error": false,
+      "review_status": "model_reviewed"
+    },
+    {
+      "run": 1,
+      "role": "staged_rollout_preserve_new_work",
+      "seconds": 20.27,
+      "is_error": false,
+      "review_status": "model_reviewed"
+    },
+    {
+      "run": 2,
+      "role": "draft_access_deadline",
+      "seconds": 10.24,
+      "is_error": false,
+      "review_status": "model_reviewed"
+    },
+    {
+      "run": 2,
+      "role": "callee_body_missing",
+      "seconds": 10.27,
+      "is_error": false,
+      "review_status": "model_reviewed"
+    },
+    {
+      "run": 2,
+      "role": "empty_submission_key",
+      "seconds": 12.92,
+      "is_error": false,
+      "review_status": "model_reviewed"
+    },
+    {
+      "run": 2,
+      "role": "deadline_calculation",
+      "seconds": 16.88,
+      "is_error": false,
+      "review_status": "model_reviewed"
+    },
+    {
+      "run": 2,
+      "role": "timestamp_race",
+      "seconds": 19.68,
+      "is_error": false,
+      "review_status": "model_reviewed"
+    },
+    {
+      "run": 2,
+      "role": "strict_deadline_boundary",
+      "seconds": 25.99,
+      "is_error": false,
+      "review_status": "model_reviewed"
+    },
+    {
+      "run": 2,
+      "role": "demo_not_service_proof",
+      "seconds": 18.79,
+      "is_error": false,
+      "review_status": "model_reviewed"
+    },
+    {
+      "run": 2,
+      "role": "staged_rollout_preserve_new_work",
+      "seconds": 19.88,
+      "is_error": false,
+      "review_status": "model_reviewed"
+    }
+  ],
+  "export_schema": 1
+}

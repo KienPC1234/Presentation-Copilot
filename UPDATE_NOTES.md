@@ -1,5 +1,11 @@
 # Cập nhật: bảo mật, độ ổn định và kiểm tra logic AI
 
+## Giữ điều kiện trong kết luận và đính chính báo cáo — 2026-10-17
+
+- Tăng kiểm tra kết luận đầu câu về công thức/điều kiện; thêm phản ví dụ đúng và sai. Sửa chặn ngưỡng phần trăm để số trần trong mã không biến thành nguồn cho SLA.
+- 118 test qua. Hai lượt chuyên gia: 15/16 không lỗi, vẫn thấy khẳng định sai khi đọc tay; hội thoại 7/8. Hiệu chỉnh reviewer cuối: 18/19, một lỗi giao thức. Chưa nghiệm thu.
+- Đính chính cờ lỗi từng lượt trong hai báo cáo công khai trước; tổng 7/8 không đổi. Thêm exporter có kiểm tra tính nhất quán và giới hạn trường công khai. Chi tiết: STRUCTURED_AI_REVIEW.md.
+
 ## Rà soát từng khẳng định và nguồn đánh giá V2 — 2026-10-17
 
 - Luồng technical tách yêu cầu, kiểm tra bao quát và trích dẫn nguyên văn cho từng khẳng định; chặn review không đủ cấu trúc, thử lại giao thức có giới hạn và giữ persona khi bỏ qua ReAct cho câu chỉ cần tài liệu.

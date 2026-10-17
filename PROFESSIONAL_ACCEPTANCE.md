@@ -21,8 +21,9 @@ Các ngưỡng trên là mục tiêu kỹ thuật đặt trước cho vòng nghi
 phải số đo đã đạt hoặc cam kết cho mọi phần cứng. Không dùng tỷ lệ câu trả lời
 đúng JSON, từ khóa hay lời tự đánh giá của mô hình làm tỷ lệ chính xác ngữ nghĩa.
 
-Checkpoint mới nhất: [STRUCTURED_AI_REVIEW.md](STRUCTURED_AI_REVIEW.md): 113 test
-backend qua; chuyên gia V2 7/8 và hội thoại 7/8 không lỗi, chưa đủ nghiệm thu.
+Checkpoint mới nhất: [STRUCTURED_AI_REVIEW.md](STRUCTURED_AI_REVIEW.md): 118 test
+backend qua; chuyên gia V2 hai lượt 15/16 và hội thoại 7/8 không lỗi, nhưng đọc
+tay còn lỗi ngữ nghĩa. Review cuối 18/19 trên ví dụ tổng hợp; chưa đủ nghiệm thu.
 Các cổng trên vẫn mở. Số 77 test trong bảng là mốc trước; kết quả ASR và tải
 trước đó: [PROFESSIONAL_VALIDATION.md](PROFESSIONAL_VALIDATION.md).
 

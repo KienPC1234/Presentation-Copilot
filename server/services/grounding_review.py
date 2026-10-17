@@ -15,6 +15,9 @@ Use this more detailed JSON schema instead of the short issues-only schema:
             "reason":"short explanation","support":[{"id":"e1","quote":"exact excerpt"}]}]}],
  "issues":[{"code":"...","detail":"..."}]}
 Assess EVERY provided requirement ID and EVERY answer field exactly once; use only provided field names.
+Audit key_point as an independently readable answer: later steps cannot rescue an overbroad or incorrect headline.
+For a formula in key_point, verify its domain, clamps and bounds; simplified equality without required conditions is a contradiction.
+For bypass claims, distinguish skipping an access check from skipping a deadline calculation or final time check.
 Coverage may reference a nonempty keywords/framework_steps collection as a whole; field audits still assess every indexed item.
 Unknown means the answer explicitly admits the requested fact is not established, not that you skipped the part.
 Split EVERY field into ordered, contiguous text spans covering the whole field; copy text exactly, do not paraphrase.
@@ -73,10 +76,16 @@ def novel_measurement_issues(question, answer, evidence, tool_facts):
     def numbers(text):
         return set().union(*(values(v) for v in re.findall(r"(?<![\w.])\d+(?:[.,]\d+)*(?![\d.])", normalize_spacing(text))))
     known = numbers(supplied)
+    # A bare integer in code (e.g. max(1, duration)) cannot establish a 1% SLA.
+    # This only checks percent units; entailment and other unit conversions still
+    # belong to semantic review. Untyped calculator results are not percentages.
+    known_percent = set().union(*(values(v) for v in re.findall(
+        r"(?<!\w)(\d+(?:[.,]\d+)*)\s*(?:%|percent\b|phần trăm\b)", normalize_spacing(supplied), re.I)))
     issues = []
     for field, text in answer_fields(answer).items():
-        for match in re.finditer(r"(?<!\w)(\d+(?:[.,]\d+)*)\s*(?:milliseconds?|seconds?|minutes?|ms\b|s\b|giây\b|phút\b|%)", normalize_spacing(text), re.I):
-            if not values(match.group(1)) & known:
+        for match in re.finditer(r"(?<!\w)(\d+(?:[.,]\d+)*)\s*(milliseconds?|seconds?|minutes?|ms\b|s\b|giây\b|phút\b|%|percent\b|phần trăm\b)", normalize_spacing(text), re.I):
+            available = known_percent if match.group(2).casefold() in ("%", "percent", "phần trăm") else known
+            if not values(match.group(1)) & available:
                 issues.append({"code": "unsupported_claim", "detail":
                     f"Field {field} introduces numeric target {match.group(0)} not provided by the question/evidence/calculator. Remove arbitrary thresholds; state that acceptance criteria must be agreed and measured."})
     return issues

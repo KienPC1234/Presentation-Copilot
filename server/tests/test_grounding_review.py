@@ -170,3 +170,10 @@ class GroundingReviewTests(unittest.TestCase):
                          [{"tool": "calculator", "result": "1020.0"}]), [])
         candidate["key_point"] = "1,020 giây hoặc 1 020 giây."
         self.assertEqual(novel_measurement_issues("Đổi đơn vị", candidate, [], [{"tool": "calculator", "result": "1020.0"}]), [])
+
+    def test_bare_code_number_cannot_supply_a_percentage_target(self):
+        candidate = {"key_point": "Đề xuất dừng khi lỗi tăng 1%.", "keywords": [], "framework_steps": []}
+        self.assertTrue(novel_measurement_issues("Đề xuất triển khai", candidate, ["max(1, duration)"], []))
+        self.assertTrue(novel_measurement_issues("Đề xuất triển khai", candidate, [], [{"tool": "calculator", "result": "1"}]))
+        self.assertEqual(novel_measurement_issues("Ngưỡng đã thống nhất là 1 phần trăm", candidate, [], []), [])
+        self.assertEqual(novel_measurement_issues("Ngưỡng 1,0 percent", candidate, [], []), [])

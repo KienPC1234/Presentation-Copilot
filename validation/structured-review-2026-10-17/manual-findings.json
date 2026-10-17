@@ -1,0 +1,47 @@
+{
+  "scope": "Source-compared manual findings from this development round; no independent adjudicator, no accuracy estimate. Private questions, answers and source excerpts omitted.",
+  "semantic_acceptance": false,
+  "findings": [
+    {
+      "report": "headline-expert-summary.json",
+      "case": "draft_access_deadline",
+      "runs": [1, 2],
+      "issue": "Formula in supporting steps omits the valid ends_at condition; literal formula is not correct for an invalid end time.",
+      "status": "open"
+    },
+    {
+      "report": "headline-expert-summary.json",
+      "case": "timestamp_race",
+      "runs": [2],
+      "issue": "Confuses the missing final persistence/helper body with an absent submission action, although an action excerpt is supplied.",
+      "status": "open"
+    },
+    {
+      "report": "headline-expert-summary.json",
+      "case": "demo_not_service_proof",
+      "runs": [1, 2],
+      "issue": "Treats a demo as proving functional correctness and suggests lack of failover without evidence of the full deployment.",
+      "status": "open"
+    },
+    {
+      "report": "headline-expert-summary.json",
+      "case": "staged_rollout_preserve_new_work",
+      "runs": [1],
+      "issue": "Arbitrary percentage target passed model review as general advice; bare code numbers fooled the original numeric guard.",
+      "status": "percent-unit regression added; latest focused answers no longer include that target; broad correctness still unproven"
+    },
+    {
+      "report": "percent-guard-rollout-summary.json",
+      "case": "staged_rollout_preserve_new_work",
+      "runs": [1, 2],
+      "issue": "Confuses stopping on adverse rollout metrics with ending a successful trial. Naming dual-write or migration does not establish preservation of new work across rollback.",
+      "status": "open; both engine-accepted answers fail this manual check"
+    },
+    {
+      "report": "headline-conversation-summary.json",
+      "case": "poisoned_followup",
+      "issue": "Blocked response instead of a useful source-grounded correction.",
+      "status": "open"
+    }
+  ]
+}

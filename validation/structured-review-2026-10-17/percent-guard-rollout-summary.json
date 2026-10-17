@@ -1,0 +1,34 @@
+{
+  "scope": "Generated Vietnamese expert questions; real RAG/model; concurrent independent agent sessions, not network or acoustic meeting test; semantic review required",
+  "model": "gpt-oss:120b-cloud",
+  "answer_model": "gemma4:31b-cloud",
+  "review_model": "gemma4:31b-cloud",
+  "style": "technical",
+  "workers": 1,
+  "evidence_sha256": "dec463ad64f894f46c12a680c47abbfed23a8d153f398bfcbf54c8a192f20199",
+  "suite": "acceptance",
+  "runs": 2,
+  "elapsed_seconds": 16.95,
+  "all_requests_p95_seconds": 10.38,
+  "percentile_method": "nearest rank; includes blocked requests; not semantic accuracy",
+  "valid_answers": 2,
+  "blocked_or_failed_answers": 0,
+  "execution_gate_passed": true,
+  "answers": [
+    {
+      "run": 1,
+      "role": "staged_rollout_preserve_new_work",
+      "seconds": 6.57,
+      "is_error": false,
+      "review_status": "model_reviewed"
+    },
+    {
+      "run": 2,
+      "role": "staged_rollout_preserve_new_work",
+      "seconds": 10.38,
+      "is_error": false,
+      "review_status": "model_reviewed"
+    }
+  ],
+  "export_schema": 1
+}

@@ -4,6 +4,7 @@
   "answer_model": "gemma4:31b-cloud",
   "review_model": "gemma4:31b-cloud",
   "evidence_sha256": "dec463ad64f894f46c12a680c47abbfed23a8d153f398bfcbf54c8a192f20199",
+  "semantic_acceptance": "requires manual source comparison",
   "checks": [
     {
       "check": "other_history_unchanged:signals",
@@ -46,7 +47,6 @@
       "passed": true
     }
   ],
-  "semantic_acceptance": "requires manual source comparison",
   "execution_passed": false,
   "results": [
     {
@@ -54,7 +54,6 @@
       "case": "signals",
       "seconds": 7.51,
       "is_error": false,
-      "error_code": null,
       "review_status": "model_reviewed"
     },
     {
@@ -62,7 +61,6 @@
       "case": "capacity",
       "seconds": 4.71,
       "is_error": false,
-      "error_code": null,
       "review_status": "model_reviewed"
     },
     {
@@ -70,7 +68,6 @@
       "case": "appeal_followup",
       "seconds": 5.44,
       "is_error": false,
-      "error_code": null,
       "review_status": "model_reviewed"
     },
     {
@@ -78,15 +75,13 @@
       "case": "deadline",
       "seconds": 5.87,
       "is_error": false,
-      "error_code": null,
       "review_status": "model_reviewed"
     },
     {
       "session": "a",
       "case": "poisoned_followup",
       "seconds": 9.03,
-      "is_error": false,
-      "error_code": null,
+      "is_error": true,
       "review_status": null
     },
     {
@@ -94,7 +89,6 @@
       "case": "deadline_correction",
       "seconds": 13.14,
       "is_error": false,
-      "error_code": null,
       "review_status": "model_reviewed"
     },
     {
@@ -102,7 +96,6 @@
       "case": "after_reset",
       "seconds": 3.94,
       "is_error": false,
-      "error_code": null,
       "review_status": "model_reviewed"
     },
     {
@@ -110,8 +103,8 @@
       "case": "design_reason",
       "seconds": 6.64,
       "is_error": false,
-      "error_code": null,
       "review_status": "model_reviewed"
     }
-  ]
+  ],
+  "export_schema": 1
 }
