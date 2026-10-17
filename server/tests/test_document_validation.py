@@ -4,6 +4,7 @@ from services.document_validation import (
     validate_cheatsheet,
     validate_outline,
     validate_rebuttals,
+    validate_rehearsal,
 )
 
 
@@ -47,6 +48,29 @@ class DocumentValidationTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             validate_cheatsheet({"one_liners": [{"question": "Q?", "answer": "A",
                                                  "evidence_ids": ["nope"]}]}, self.allowed)
+
+    def test_rehearsal_requires_a_timeline(self):
+        with self.assertRaises(ValueError):
+            validate_rehearsal({"timeline": []}, self.allowed)
+        with self.assertRaises(ValueError):
+            validate_rehearsal({"timeline": [{"minutes": 0, "focus": "x"}]}, self.allowed)
+        plan = validate_rehearsal({
+            "timeline": [{"minutes": 3, "focus": "Mở đầu"}],
+            "risky_claims": ["Đừng nói chặn 100%"],
+            "checklist": ["Chuẩn bị log đo"],
+        }, self.allowed)
+        self.assertEqual(plan["timeline"][0]["minutes"], 3)
+        self.assertEqual(plan["risky_claims"], ["Đừng nói chặn 100%"])
+
+    def test_rebuttal_closing_fields_are_optional_but_bounded(self):
+        item = {"question_id": "q1", "objection": "x", "answer_points": [],
+                "evidence_ids": [], "fallback": "y", "closing": "c" * 600}
+        with self.assertRaises(ValueError):
+            validate_rebuttals([item], self.allowed, self.question_ids)
+        item["closing"] = "Ngắn gọn."
+        validated = validate_rebuttals([item], self.allowed, self.question_ids)[0]
+        self.assertEqual(validated["closing"], "Ngắn gọn.")
+        self.assertEqual(validated["second_followup"], "")
 
 
 if __name__ == "__main__":

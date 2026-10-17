@@ -28,8 +28,22 @@ def validate_plan(data, evidence, count, language="vi"):
         if not refs:
             outline = ["Chưa có bằng chứng trong tài liệu. Chuẩn bị số liệu hoặc ví dụ đã kiểm chứng trước khi trả lời."
                        if language == "vi" else "No evidence supplied. Prepare verified measurements or examples before answering."]
+        proof = item.get("proof_needed") or []
+        if not isinstance(proof, list) or len(proof) > 3 \
+                or any(not isinstance(x, str) or not x.strip() or len(x) > 500 for x in proof):
+            raise ValueError("Invalid proof_needed")
+        pitfall = item.get("pitfall") or ""
+        if not isinstance(pitfall, str) or len(pitfall) > 700:
+            raise ValueError("Invalid pitfall")
+        follow_ups = item.get("follow_ups") or []
+        if not isinstance(follow_ups, list) or len(follow_ups) > 2 \
+                or any(not isinstance(x, str) or not x.strip() or len(x) > 500 for x in follow_ups):
+            raise ValueError("Invalid follow_ups")
         cleaned.update(answer_outline=outline, evidence_ids=list(dict.fromkeys(refs)),
-                       evidence_status="cited" if refs else "missing")
+                       evidence_status="cited" if refs else "missing",
+                       proof_needed=[x.strip() for x in proof],
+                       pitfall=pitfall.strip(),
+                       follow_ups=[x.strip() for x in follow_ups])
         questions.append(cleaned)
     if count >= 6 and set(q["category"] for q in questions) != set(CATEGORIES):
         raise ValueError("Missing required defense categories")

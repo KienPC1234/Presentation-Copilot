@@ -123,11 +123,12 @@ The dashboard at `http://<server>:8765` is the remote control for the server. Be
 | File | Content |
 |---|---|
 | `defense-pack.md` | Everything below, with a table of contents and limitations |
-| `01-qa.md` | AI-suggested defence questions, grouped by category |
-| `02-rebuttal.md` | Objection, answer points and a fallback for each question |
-| `03-outline.md` | Presentation flow with evidence links |
+| `01-qa.md` | Questions with purpose, answer checklist, **evidence to prepare**, **common pitfall**, **likely follow-ups** and citations |
+| `02-rebuttal.md` | Objection, answer points, **closing line**, **if-pressed-further** reply and a fallback |
+| `03-outline.md` | Timed presentation flow with evidence links |
 | `04-cheatsheet.md` | One page of numbers, terms and quick answers |
-| `05-evidence.md` | The exact excerpts the model was given |
+| `05-rehearsal.md` | **Timed rehearsal plan**, **risky claims to avoid** and a **pre-stage checklist** |
+| `06-evidence.md` | The exact excerpts the model was given |
 | `manifest.json` | Cache key, topic, index fingerprint and file list |
 
 Results are cached by a hash of topic, focus, language, count, document types and the current index fingerprint, so repeating a request does not call the model. `POST /api/documents/prebuild` generates the topics saved under **Panel defaults** so documents are ready before the presentation. Every file is labelled AI-generated preparation and every claim keeps its evidence ID; outlines are checklists, not verified facts.

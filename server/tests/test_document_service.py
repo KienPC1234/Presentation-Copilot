@@ -69,6 +69,9 @@ class FakeDefense:
                 "purpose": "Explain user value", "follow_up": "What proof exists?",
                 "answer_outline": ["Check the documented user task"],
                 "evidence_ids": ["e1"], "evidence_status": "cited",
+                "proof_needed": ["Prepare the 88-sample precision/recall figure"],
+                "pitfall": "Đừng khẳng định chặn mọi cuộc gọi lừa đảo.",
+                "follow_ups": ["Bộ mẫu được dán nhãn thế nào?"],
             }],
             "evidence": [{"id": "e1", "excerpt": "[readme.md] Project fact"}],
         }
@@ -78,12 +81,17 @@ def pack_payload(evidence_ids=("e1",)):
     return {
         "rebuttal": [{"question_id": "q1", "objection": "Cost",
                       "answer_points": ["Cite the measured cost"],
-                      "evidence_ids": list(evidence_ids), "fallback": "Say it is not measured"}],
+                      "evidence_ids": list(evidence_ids), "fallback": "Say it is not measured",
+                      "closing": "Số liệu nằm trong tài liệu, tôi kiểm tra lại sau.",
+                      "second_followup": "Nếu hỏi tiếp về thời điểm đo, nói rõ chưa đo lúc tải cao."}],
         "outline": [{"title": "Demo", "points": ["Show the login flow"],
-                     "evidence_ids": list(evidence_ids)}],
+                     "evidence_ids": list(evidence_ids), "timing": "2 phút"}],
         "cheatsheet": {"key_numbers": ["5 chunks"], "key_terms": ["latency"],
                        "one_liners": [{"question": "Who?", "answer": "Students",
                                        "evidence_ids": list(evidence_ids)}]},
+        "rehearsal": {"timeline": [{"minutes": 2, "focus": "Mở đầu và vấn đề"}],
+                      "risky_claims": ["Đừng khẳng định chặn 100% lừa đảo"],
+                      "checklist": ["Chuẩn bị bộ 88 mẫu trước khi lên"]},
     }
 
 
@@ -172,6 +180,23 @@ class DocumentServiceTests(unittest.TestCase):
         second = service.generate("Online learning platform", kinds=["qa", "evidence"])
         self.assertTrue(second["cached"])
         self.assertEqual(first["cache_key"], second["cache_key"])
+
+    def test_full_pack_renders_the_deeper_sections(self):
+        service, _ = self.make_service()
+        result = service.generate("Online learning platform",
+                                  kinds=["qa", "rebuttal", "outline", "cheatsheet", "rehearsal"])
+        self.assertEqual(result["status"], "success")
+        self.assertEqual({f["kind"] for f in result["files"]},
+                         {"qa", "rebuttal", "outline", "cheatsheet", "rehearsal"})
+        markdown = result["markdown"]
+        for marker in (self.module._LABELS["vi"]["proof"],
+                       self.module._LABELS["vi"]["pitfall"],
+                       self.module._LABELS["vi"]["followups"],
+                       self.module._LABELS["vi"]["closing"],
+                       self.module._LABELS["vi"]["rehearsal"],
+                       self.module._LABELS["vi"]["risky"]):
+            self.assertIn(marker, markdown)
+        self.assertIn("88 mẫu", markdown)
 
     def test_missing_sections_are_retried_with_focused_calls(self):
         llm = FlakyFakeLLM()

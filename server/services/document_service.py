@@ -33,14 +33,19 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from config import settings
 from services.defense_service import DefenseService
 from services.document_kinds import DOCUMENT_KINDS, KIND_LABELS, LANGUAGES
-from services.document_validation import validate_cheatsheet, validate_outline, validate_rebuttals
+from services.document_validation import (
+    validate_cheatsheet,
+    validate_outline,
+    validate_rebuttals,
+    validate_rehearsal,
+)
 from services.evidence_filter import filter_evidence
 from services.ollama_json import OllamaJSONClient
 from services.output_validation import parse_json_object
 
 logger = logging.getLogger(__name__)
 
-_SCHEMA = "v1"
+_SCHEMA = "v3"
 _MAX_EVIDENCE = 10
 _CACHE_KEY_RE = re.compile(r"^[0-9a-f]{64}$")
 _EVIDENCE_QUERIES = (
@@ -75,6 +80,16 @@ _LABELS: dict[str, dict[str, str]] = {
         "generated_at": "Tạo lúc",
         "cache": "Khoá cache",
         "section_failed": "Chưa tạo được phần này. Hãy bấm tạo lại sau khi kiểm tra tài liệu.",
+        "proof": "Bằng chứng cần chuẩn bị",
+        "pitfall": "Lỗi dễ mắc",
+        "followups": "Câu hỏi truy tiếp (dự kiến)",
+        "closing": "Câu chốt",
+        "second": "Nếu bị truy tiếp",
+        "rehearsal": "Kế hoạch luyện tập & rủi ro",
+        "timeline": "Phân bổ thời gian",
+        "risky": "Câu dễ mất điểm (nên tránh)",
+        "rehearsal_checklist": "Danh sách kiểm tra trước khi lên",
+        "minutes": "phút",
     },
     "en": {
         "title": "Defense preparation pack",
@@ -101,6 +116,16 @@ _LABELS: dict[str, dict[str, str]] = {
         "generated_at": "Generated at",
         "cache": "Cache key",
         "section_failed": "This section could not be generated. Regenerate after checking the documents.",
+        "proof": "Evidence to prepare",
+        "pitfall": "Common pitfall",
+        "followups": "Likely follow-up questions",
+        "closing": "Closing line",
+        "second": "If pressed further",
+        "rehearsal": "Rehearsal plan & risk list",
+        "timeline": "Timing",
+        "risky": "Risky claims to avoid",
+        "rehearsal_checklist": "Pre-stage checklist",
+        "minutes": "min",
     },
 }
 
@@ -227,10 +252,15 @@ class DocumentService:
 
     _SECTION_SCHEMA = {
         "rebuttal": ("rebuttal: array; each item has question_id (from the supplied questions), objection, "
-                     "answer_points (0-6 strings), evidence_ids (array of supplied ids), fallback."),
-        "outline": "outline: array; each item has title, points (0-6 strings), evidence_ids.",
+                     "answer_points (0-6 strings), evidence_ids (array of supplied ids), fallback, closing, "
+                     "second_followup."),
+        "outline": "outline: array; each item has title, points (0-6 strings), evidence_ids, timing (e.g. \"2 phút\").",
         "cheatsheet": ("cheatsheet: object with key_numbers (array), key_terms (array), "
                        "one_liners (array of question/answer/evidence_ids)."),
+        "rehearsal": ("rehearsal: object with timeline (array of {minutes: int, focus: string}), "
+                      "risky_claims (array of strings: claims the speaker must NOT make because they are "
+                      "unsupported or unmeasured), checklist (array of strings: things to prepare before "
+                      "the session)."),
     }
 
     def _call_pack(self, topic: str, focus: str, language: str,
@@ -280,12 +310,17 @@ class DocumentService:
                 pack["cheatsheet"] = validate_cheatsheet(data.get("cheatsheet"), allowed)
             except ValueError as exc:
                 logger.warning("Cheatsheet section rejected: %s", exc)
+        if "rehearsal" in wanted:
+            try:
+                pack["rehearsal"] = validate_rehearsal(data.get("rehearsal"), allowed)
+            except ValueError as exc:
+                logger.warning("Rehearsal section rejected: %s", exc)
         return pack
 
     def _compose_pack(self, topic: str, focus: str, language: str,
                       evidence: list[dict[str, str]],
                       questions: list[dict[str, Any]], kinds: list[str]) -> dict[str, Any]:
-        wanted = [kind for kind in ("rebuttal", "outline", "cheatsheet") if kind in kinds]
+        wanted = [kind for kind in ("rebuttal", "outline", "cheatsheet", "rehearsal") if kind in kinds]
         if not wanted:
             return {}
         allowed = {item["id"] for item in evidence}
@@ -329,9 +364,17 @@ class DocumentService:
             lines.append(f"### Q{index} [{question['category']}] {question['question']}")
             lines.append(f"- {labels['purpose']}: {question['purpose']}")
             lines.append(f"- {labels['checklist']}:")
-            for step in question["answer_outline"]:
-                lines.append(f"  1. {step}")
+            for step_number, step in enumerate(question["answer_outline"], 1):
+                lines.append(f"  {step_number}. {step}")
             lines.append(f"- {labels['followup']}: {question['follow_up']}")
+            if question.get("proof_needed"):
+                lines.append(f"- {labels['proof']}:")
+                for needed in question["proof_needed"]:
+                    lines.append(f"  - {needed}")
+            if question.get("pitfall"):
+                lines.append(f"- {labels['pitfall']}: {question['pitfall']}")
+            for extra in question.get("follow_ups", []):
+                lines.append(f"- {labels['followups']}: {extra}")
             lines.append(f"- {self._cite(question.get('evidence_ids', []), labels)}")
             lines.append("")
         return "\n".join(lines)
@@ -351,6 +394,10 @@ class DocumentService:
             for point in item["answer_points"]:
                 lines.append(f"- {point}")
             lines.append(f"**{labels['fallback']}:** {item['fallback']}")
+            if item.get("closing"):
+                lines.append(f"**{labels['closing']}:** {item['closing']}")
+            if item.get("second_followup"):
+                lines.append(f"**{labels['second']}:** {item['second_followup']}")
             lines.append(f"- {self._cite(item.get('evidence_ids', []), labels)}")
             lines.append("")
         return "\n".join(lines)
@@ -361,7 +408,10 @@ class DocumentService:
             lines.append(labels["section_failed"])
             return "\n".join(lines)
         for index, section in enumerate(outline, 1):
-            lines.append(f"### {index}. {section['title']}")
+            title = f"### {index}. {section['title']}"
+            if section.get("timing"):
+                title += f" ({section['timing']})"
+            lines.append(title)
             for point in section["points"]:
                 lines.append(f"- {point}")
             lines.append(f"- {self._cite(section.get('evidence_ids', []), labels)}")
@@ -382,6 +432,22 @@ class DocumentService:
         lines.append(f"### {labels['one_liners']}")
         for item in sheet["one_liners"]:
             lines.append(f"- {item['question']} → {item['answer']} ({', '.join(item['evidence_ids']) or labels['missing_evidence']})")
+        lines.append("")
+        return "\n".join(lines)
+
+    def _render_rehearsal(self, labels: dict[str, str], plan: dict[str, Any] | None) -> str:
+        lines = [f"## {labels['rehearsal']}", ""]
+        if plan is None:
+            lines.append(labels["section_failed"])
+            return "\n".join(lines)
+        lines.append(f"### {labels['timeline']}")
+        lines.extend(f"- {step['minutes']} {labels['minutes']} — {step['focus']}" for step in plan["timeline"])
+        lines.append("")
+        lines.append(f"### {labels['risky']}")
+        lines.extend(f"- {item}" for item in plan["risky_claims"] or ["—"])
+        lines.append("")
+        lines.append(f"### {labels['rehearsal_checklist']}")
+        lines.extend(f"- [ ] {item}" for item in plan["checklist"] or ["—"])
         lines.append("")
         return "\n".join(lines)
 
@@ -442,7 +508,7 @@ class DocumentService:
                 questions = []
 
             pack: dict[str, Any] = {}
-            if {"rebuttal", "outline", "cheatsheet"} & set(kind_list):
+            if {"rebuttal", "outline", "cheatsheet", "rehearsal"} & set(kind_list):
                 try:
                     pack = self._compose_pack(topic, focus, language, evidence, questions, kind_list)
                 except Exception:
@@ -451,7 +517,7 @@ class DocumentService:
             questions_by_id = {q["id"]: q for q in questions}
             created_at = datetime.now(timezone.utc).isoformat()
             sections: dict[str, str] = {}
-            for kind in ("qa", "rebuttal", "outline", "cheatsheet", "evidence"):
+            for kind in DOCUMENT_KINDS:
                 if kind not in kind_list:
                     continue
                 if kind == "qa":
@@ -462,10 +528,12 @@ class DocumentService:
                     sections[kind] = self._render_outline(labels, pack.get("outline"))
                 elif kind == "cheatsheet":
                     sections[kind] = self._render_cheatsheet(labels, pack.get("cheatsheet"))
+                elif kind == "rehearsal":
+                    sections[kind] = self._render_rehearsal(labels, pack.get("rehearsal"))
                 elif kind == "evidence":
                     sections[kind] = self._render_evidence(labels, evidence)
 
-            missing = [kind for kind in ("rebuttal", "outline", "cheatsheet")
+            missing = [kind for kind in ("rebuttal", "outline", "cheatsheet", "rehearsal")
                        if kind in kind_list and pack.get(kind) is None]
 
             header = [

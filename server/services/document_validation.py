@@ -46,12 +46,20 @@ def validate_rebuttals(items: Any, allowed: set[str], question_ids: set[str]) ->
         question_id = _text(item.get("question_id"), 40, "question_id")
         if question_id not in question_ids:
             raise ValueError("Unknown question reference")
+        closing = item.get("closing") or ""
+        if not isinstance(closing, str) or len(closing) > 500:
+            raise ValueError("Invalid closing")
+        second = item.get("second_followup") or ""
+        if not isinstance(second, str) or len(second) > 500:
+            raise ValueError("Invalid second_followup")
         result.append({
             "question_id": question_id,
             "objection": _text(item.get("objection"), 1000, "objection"),
             "answer_points": _string_list(item.get("answer_points", []), _MAX_POINTS, 700, "answer_points"),
             "evidence_ids": _refs(item.get("evidence_ids"), allowed),
             "fallback": _text(item.get("fallback"), 1000, "fallback"),
+            "closing": closing.strip(),
+            "second_followup": second.strip(),
         })
     return result
 
@@ -63,12 +71,37 @@ def validate_outline(items: Any, allowed: set[str]) -> list[dict[str, Any]]:
     for item in items:
         if not isinstance(item, dict):
             raise ValueError("Invalid outline section")
+        timing = item.get("timing") or ""
+        if not isinstance(timing, str) or len(timing) > 40:
+            raise ValueError("Invalid timing")
         result.append({
             "title": _text(item.get("title"), 200, "title"),
             "points": _string_list(item.get("points", []), _MAX_POINTS, 700, "points"),
             "evidence_ids": _refs(item.get("evidence_ids"), allowed),
+            "timing": timing.strip(),
         })
     return result
+
+
+def validate_rehearsal(data: Any, allowed: set[str]) -> dict[str, Any]:
+    if not isinstance(data, dict):
+        raise ValueError("Invalid rehearsal plan")
+    timeline = data.get("timeline", [])
+    if not isinstance(timeline, list) or not timeline or len(timeline) > 8:
+        raise ValueError("Invalid timeline")
+    steps = []
+    for item in timeline:
+        if not isinstance(item, dict):
+            raise ValueError("Invalid timeline entry")
+        minutes = item.get("minutes")
+        if not isinstance(minutes, int) or isinstance(minutes, bool) or not 1 <= minutes <= 60:
+            raise ValueError("Invalid timeline minutes")
+        steps.append({"minutes": minutes, "focus": _text(item.get("focus"), 400, "focus")})
+    return {
+        "timeline": steps,
+        "risky_claims": _string_list(data.get("risky_claims", []), 8, 500, "risky_claims"),
+        "checklist": _string_list(data.get("checklist", []), 8, 500, "checklist"),
+    }
 
 
 def validate_cheatsheet(data: Any, allowed: set[str]) -> dict[str, Any]:

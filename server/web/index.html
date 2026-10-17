@@ -1241,8 +1241,13 @@
                     const card = document.createElement('article');
                     card.className = 'bg-cardbg border border-bordercolor rounded-xl p-5 space-y-3';
                     const title = document.createElement('h3'); title.className = 'font-bold text-base text-white'; title.textContent = `${index + 1}. ${question.question}`; card.append(title);
-                    for (const line of [`Mục đích: ${question.purpose}`, ...question.answer_outline.map(x => `• ${x}`), `Hỏi tiếp: ${question.follow_up}`,
-                        question.evidence_status === 'cited' ? `Đoạn tài liệu tham khảo: ${question.evidence_ids.join(', ')} — cần kiểm tra lại câu trả lời.` : 'Chưa có đoạn tài liệu làm căn cứ: cần chuẩn bị thêm bằng chứng.']) {
+                    const lines = [`Mục đích: ${question.purpose}`, ...question.answer_outline.map(x => `• ${x}`),
+                        `Hỏi tiếp: ${question.follow_up}`];
+                    (question.proof_needed || []).forEach(x => lines.push(`Bằng chứng cần chuẩn bị: ${x}`));
+                    if (question.pitfall) lines.push(`Lỗi dễ mắc: ${question.pitfall}`);
+                    (question.follow_ups || []).forEach(x => lines.push(`Có thể hỏi tiếp: ${x}`));
+                    lines.push(question.evidence_status === 'cited' ? `Đoạn tài liệu tham khảo: ${question.evidence_ids.join(', ')} — cần kiểm tra lại câu trả lời.` : 'Chưa có đoạn tài liệu làm căn cứ: cần chuẩn bị thêm bằng chứng.');
+                    for (const line of lines) {
                         const text = document.createElement('p'); text.textContent = line; card.append(text);
                     }
                     document.getElementById('defenseQuestions').append(card);

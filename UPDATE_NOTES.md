@@ -11,6 +11,15 @@
 - Đã sửa: thêm 2 quy tắc vào `REVIEW_PROMPT` (chấp nhận hỏi lại khi câu mơ hồ; chấp nhận "tài liệu không nêu" khi câu hỏi đòi so sánh với thứ ngoài bằng chứng), và đổi sửa lỗi thành vòng lặp có giới hạn `AGENT_MAX_REPAIRS` (mặc định 2) thay vì sửa 1 lần rồi bỏ. Vẫn từ chối nếu còn lỗi sau khi sửa (không hiển thị câu chưa đạt).
 - Đã cập nhật test `test_agent_contract` cho hành vi mới (126 test host, 3 lỗi import do thiếu phụ thuộc).
 - **Mở rộng audit lên 34 ca** (thêm 18 ca thực tế/hiểm: giám khảo gay gắt, tiền đề sai về tech stack, tin đồn bị hack, đòi bảo đảm 100%, câu ghép, câu cụt, áp lực cảm xúc đòi số bịa, hỏi tính năng không tồn tại, Nghị định 13, injection trong tài liệu trích dẫn, "developer mode", "Tại sao?"). **Kết quả cuối: 34/34 kỳ vọng đạt**, latency trung vị 5,6 s. Artifact: `validation/audit-2026-10-17/`.
+
+## Tài liệu phản biện sâu hơn (schema v2) — 2026-10-17
+
+- Bộ câu hỏi giờ mỗi câu có thêm: **bằng chứng cần chuẩn bị** (`proof_needed`), **lỗi dễ mắc** (`pitfall`), **câu hỏi truy tiếp dự kiến** (`follow_ups`) — ngoài mục đích/dàn ý/hỏi tiếp đã có.
+- Kịch bản phản biện thêm **câu chốt** (`closing`) và **cách trả lời nếu bị truy tiếp** (`second_followup`).
+- Dàn ý thêm **thời lượng** từng phần (`timing`).
+- **Mục mới `rehearsal`**: kế hoạch luyện tập theo phút, **danh sách câu dễ mất điểm cần tránh**, và checklist chuẩn bị trước khi lên — xuất thành `05-rehearsal.md`.
+- Panel dashboard (tab CHUẨN BỊ PHẢN BIỆN) hiển thị luôn bằng chứng cần chuẩn bị / lỗi dễ mắc / câu hỏi truy tiếp.
+- Bump `_SCHEMA` lên `v2` để cache cũ tự tạo lại; thêm test cho `validate_rehearsal`, `closing`/`second_followup`, `timing` và render đủ 6 phần (150 test trong container OK).
 - **Bug thứ 5 do audit tìm được**: câu hỏi cụt không có ngữ cảnh ("Tại sao?") bị model **gán bừa vào đoạn tài liệu đầu tiên** rồi trả lời sai trọng tâm (thay vì hỏi lại). Đã sửa tất định: `needs_clarification()` + `clarification_answer()` trong `agent_service` — câu hỏi trống ngữ cảnh dạng đại từ/bare-interrogative được trả lời bằng một câu hỏi lại ngắn (kèm test), không phụ thuộc model.
 - **Bug thứ 6 do audit tìm được**: reviewer có lúc **tự mâu thuẫn** — gán `unsupported_claim` nhưng ngay trong chi tiết lại ghi "The evidence supports this: README.md says…". Đã thêm quy tắc vào `REVIEW_PROMPT` (không gán unsupported_claim khi bằng chứng có hỗ trợ) và một bộ lọc hẹp `drop_self_contradictory()` loại đúng những issue tự mâu thuẫn (kèm test). Vẫn giữ nguyên tắc an toàn: sau khi sửa mà còn lỗi thì **từ chối trả lời**, không hiển thị câu chưa đạt.
 - Tăng `AGENT_MAX_REPAIRS` mặc định 2 → 3 để bù tính không tất định của reviewer. Giới hạn còn lại: khoảng 1/34 ca vẫn có thể bị reviewer từ chối thoáng qua (cùng câu lúc lỗi lúc qua); hệ thống **từ chối trả lời** thay vì đưa câu sai — bấm lại phím là được.
