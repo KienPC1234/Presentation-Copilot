@@ -51,3 +51,9 @@ class AnswerReviewTests(unittest.TestCase):
         self.assertEqual(deterministic_issues("Có giải trình không?", answer)[0]["code"], "unsupported_claim")
         self.assertEqual(deterministic_issues("Có giải trình không?", {"key_point": "Đề xuất: học sinh có quyền giải trình."}), [])
         self.assertEqual(deterministic_issues("Có giải trình không?", answer, ["Học sinh có quyền giải trình."]), [])
+
+    def test_blanket_false_summary_cannot_erase_unknown_in_supporting_answer(self):
+        answer = {"key_point": "Cả hai khẳng định đều sai.", "framework_steps": ["Dùng ZetaDB chưa được xác nhận.", "Không tự trừ điểm theo tài liệu."]}
+        self.assertEqual(deterministic_issues("Đối chiếu?", answer)[0]["code"], "contradiction")
+        answer["key_point"] = "Không thể kết luận cả hai đều sai; cần phân biệt."
+        self.assertEqual(deterministic_issues("Đối chiếu?", answer), [])

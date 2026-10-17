@@ -8,6 +8,12 @@ import unittest
 from unittest.mock import Mock, patch
 
 from services.context_manager import SessionContext
+from services.answer_review import parse_review
+
+
+def mocked_grounding_review(llm, *args, **kwargs):
+    """Orchestration-only double; quote/coverage semantics are tested separately."""
+    return parse_review(llm.invoke([]).content)
 
 
 def load_agent():
@@ -20,6 +26,7 @@ def load_agent():
         "config": {"settings": SimpleNamespace(response_style="technical")},
         "services.react_parser": {"StructuredReActParser": Mock()},
         "services.ollama_json": {"OllamaJSONClient": Mock()},
+        "services.grounding_review": {"review_grounding": mocked_grounding_review},
         "langchain_core.messages": {"HumanMessage": Mock(), "SystemMessage": Mock()},
     }.items():
         module = ModuleType(name)
@@ -36,11 +43,15 @@ class AgentContractTests(unittest.TestCase):
     def setUp(self):
         self.module = load_agent()
         self.agent = self.module.AgentService.__new__(self.module.AgentService)
+        self.agent._current_persona_key = "tech_hackathon"
+        self.agent._custom_persona_text = ""
         self.agent._rag = Mock()
         self.agent._rag.query.return_value = ["[actual.md] evidence"]
         self.agent._executor = Mock()
         self.agent._plain_llm = Mock()
         self.agent._review_llm = Mock()
+        self.agent._plan_llm = Mock()
+        self.agent._plan_llm.invoke.return_value.content = '{"requirements": ["Answer the question"], "tools": []}'
         self.agent._review_llm.invoke.return_value.content = '{"issues": []}'
         self.agent._plain_llm.invoke.return_value.content = json.dumps({
             "key_point": "Answer", "keywords": [], "framework_steps": [],
@@ -52,16 +63,43 @@ class AgentContractTests(unittest.TestCase):
             "key_point": "Answer", "keywords": [], "framework_steps": [],
             "retrieved_sources": ["forged.md"]}), "intermediate_steps": []}
         result = self.agent.run("question", self.ctx)
-        self.assertIn("[actual.md]", self.agent._executor.invoke.call_args.args[0]["evidence"])
+        payload = json.loads(self.module.HumanMessage.call_args.kwargs["content"])
+        self.assertIn("[actual.md] evidence", payload["evidence"])
+        self.agent._executor.invoke.assert_not_called()
         self.assertEqual(result["retrieved_sources"], ["[actual.md]"])
         self.assertEqual(len(self.ctx.get_history()), 2)
+
+    def test_technical_question_parts_are_passed_to_composer(self):
+        self.agent._executor.invoke.return_value = {"intermediate_steps": []}
+        self.agent._plan_llm.invoke.return_value.content = '{"requirements":["Test ownership", "Test changed ID"], "tools":[]}'
+        self.agent.run("Test both", self.ctx)
+        payload = json.loads(self.module.HumanMessage.call_args.kwargs["content"])
+        self.assertEqual([p["id"] for p in payload["requirements"]], ["r1", "r2"])
+        self.assertEqual(payload["requirements"][1]["request"], "Test changed ID")
+
+    def test_persona_is_preserved_without_requiring_react_round_trip(self):
+        self.agent._current_persona_key = "startup_pitch"
+        self.agent.run("What should I say?", self.ctx)
+        payload = json.loads(self.module.HumanMessage.call_args.kwargs["content"])
+        self.assertIn("investors", payload["presentation_persona"])
+        self.agent._executor.invoke.assert_not_called()
+
+    def test_invalid_question_plan_prevents_generation_and_memory(self):
+        self.agent._plan_llm.invoke.return_value.content = '{"requirements":[]}'
+        with self.assertLogs(self.module.logger, level="ERROR"):
+            result = self.agent.run("question", self.ctx)
+        self.assertIn("error", result)
+        self.agent._executor.invoke.assert_not_called()
+        self.agent._plain_llm.invoke.assert_not_called()
+        self.assertEqual(self.ctx.get_history(), [])
 
     def test_rehearsal_topic_anchors_retrieval_without_replacing_question(self):
         self.ctx.set_fact("presentation_topic", "My real product")
         self.agent._executor.invoke.return_value = {"output": json.dumps({
             "key_point": "Answer", "keywords": [], "framework_steps": []}), "intermediate_steps": []}
         self.agent.run("How reliable is it?", self.ctx)
-        self.agent._rag.query.assert_called_once_with("My real product: How reliable is it?", top_k=4)
+        self.assertEqual(self.agent._rag.query.call_args_list[0].args[0], "My real product: How reliable is it?")
+        self.assertTrue(all(call.args[0].startswith("My real product:") for call in self.agent._rag.query.call_args_list))
 
     def test_invalid_answer_not_remembered(self):
         self.agent._plain_llm.invoke.return_value.content = "invalid JSON"
@@ -72,12 +110,22 @@ class AgentContractTests(unittest.TestCase):
         self.assertEqual(self.ctx.get_history(), [])
 
     def test_technical_planner_failure_recovers_from_original_evidence(self):
+        self.agent._plan_llm.invoke.return_value.content = '{"requirements":["Calculate a value"], "tools":["calculator"]}'
         self.agent._executor.invoke.side_effect = ValueError("invalid planner output")
         with self.assertLogs(self.module.logger, level="WARNING"):
             result = self.agent.run("question", self.ctx)
         self.assertNotIn("error", result)
         self.agent._plain_llm.invoke.assert_called_once()
         self.assertEqual(result["retrieved_sources"], ["[actual.md]"])
+
+    def test_technical_calculator_plan_still_runs_real_tool_executor(self):
+        self.agent._plan_llm.invoke.return_value.content = '{"requirements":["Calculate 17 * 60"], "tools":["calculator"]}'
+        action = SimpleNamespace(tool="calculator", tool_input="17 * 60")
+        self.agent._executor.invoke.return_value = {"intermediate_steps": [(action, "1020")]}
+        self.agent.run("17 phút bằng mấy giây?", self.ctx)
+        self.agent._executor.invoke.assert_called_once()
+        payload = json.loads(self.module.HumanMessage.call_args.kwargs["content"])
+        self.assertEqual(payload["tool_observations"][0]["result"], "1020")
 
     def test_review_rejects_twice_without_remembering_answer(self):
         self.agent._executor.invoke.return_value = {"intermediate_steps": []}

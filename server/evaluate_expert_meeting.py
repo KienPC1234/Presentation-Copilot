@@ -11,6 +11,7 @@ from pathlib import Path
 import time
 import math
 from threading import local
+from evaluation_acceptance_cases import ACCEPTANCE_CASES
 
 CASES = [
     ("cto", "Nếu 500 học sinh nộp bài cùng lúc, có thể cam kết chịu tải không? Phân biệt bằng chứng hiện có, giả thuyết và phép đo cần làm trước khi cam kết."),
@@ -45,12 +46,12 @@ def main():
     parser.add_argument("--embedding-url", required=True)
     parser.add_argument("--workers", type=int, choices=range(1, 9), default=4)
     parser.add_argument("--style", choices=["plain", "technical"], default="technical")
-    parser.add_argument("--suite", choices=["development", "holdout"], default="development")
+    parser.add_argument("--suite", choices=["development", "holdout", "acceptance"], default="development")
     parser.add_argument("--runs", type=int, choices=range(1, 4), default=1)
     parser.add_argument("--case", help="Run one role ID for focused diagnosis")
     parser.add_argument("--trace-review", action="store_true", help="Save reviewer JSON feedback in the PRIVATE report")
     args = parser.parse_args()
-    cases = HOLDOUT_CASES if args.suite == "holdout" else CASES
+    cases = {"development": CASES, "holdout": HOLDOUT_CASES, "acceptance": ACCEPTANCE_CASES}[args.suite]
     if args.case:
         cases = [case for case in cases if case[0] == args.case]
         if not cases:
@@ -78,7 +79,9 @@ def main():
                 def invoke(self, messages):
                     response = reviewer.invoke(messages)
                     payload = json.loads(messages[-1].content)
-                    state.reviews.append({"feedback": response.content, "candidate": payload["candidate"]})
+                    state.reviews.append({"feedback": response.content, "candidate": payload["candidate"],
+                                          "requirements": payload.get("requirements", []), "evidence": payload["evidence"],
+                                          "tool_observations": payload.get("tool_observations", [])})
                     return response
 
             agent._review_llm = RecordingReviewer()

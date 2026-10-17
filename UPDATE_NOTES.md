@@ -1,5 +1,13 @@
 # Cập nhật: bảo mật, độ ổn định và kiểm tra logic AI
 
+## Rà soát từng khẳng định và nguồn đánh giá V2 — 2026-10-17
+
+- Luồng technical tách yêu cầu, kiểm tra bao quát và trích dẫn nguyên văn cho từng khẳng định; chặn review không đủ cấu trúc, thử lại giao thức có giới hạn và giữ persona khi bỏ qua ReAct cho câu chỉ cần tài liệu.
+- RAG bổ sung truy xuất định danh và gợi ý phạm vi switch case; sửa clear store lỗi/rỗng.
+- Sửa lỗi tài liệu thử do chúng tôi chuẩn bị: loại chỉ dẫn khỏi nguồn V2, giữ nguyên trích đoạn mã và hash đối chiếu.
+- 113 test backend qua. Hiệu chỉnh reviewer: 14/14 ví dụ tổng hợp; chuyên gia 7/8 và hội thoại 7/8 không lỗi, vẫn có kết luận quá rộng và một số lượt bị chặn. Không coi các tỷ lệ này là độ chính xác AI.
+- Goal vẫn hoạt động, chưa nghiệm thu professional. Báo cáo, cách tái lập và lỗi còn mở: [STRUCTURED_AI_REVIEW.md](STRUCTURED_AI_REVIEW.md). Chỉ đẩy số liệu đã lược dữ liệu riêng.
+
 ## Goal professional và vòng nghiệm thu — 2026-10-17
 
 - Goal đang hoạt động, chưa đánh dấu nghiệm thu. Tiêu chí: PROFESSIONAL_ACCEPTANCE.md; kết quả và giới hạn: PROFESSIONAL_VALIDATION.md.

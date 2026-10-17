@@ -27,11 +27,13 @@ from langchain_ollama import ChatOllama
 from config import settings
 from services.output_validation import parse_suggestion
 from services.react_parser import StructuredReActParser
-from services.response_style import RESPONSE_STYLES, EXPERT_GROUNDING
+from services.response_style import RESPONSE_STYLES, EXPERT_GROUNDING, PERSONA_RULE
 from services.evidence_filter import filter_evidence
 from services.response_quality import missing_requested_example
 from services.answer_review import review_answer
 from services.ollama_json import OllamaJSONClient
+from services.question_plan import plan_question
+from services.grounding_review import review_grounding
 
 if TYPE_CHECKING:
     from services.context_manager import SessionContext
@@ -193,7 +195,8 @@ class AgentService:
         )
         answer_model = settings.ollama_answer_model or settings.ollama_model
         self._plain_llm = OllamaJSONClient(model=answer_model)
-        self._review_llm = OllamaJSONClient(model=settings.ollama_review_model or answer_model)
+        self._review_llm = OllamaJSONClient(model=settings.ollama_review_model or answer_model, num_predict=8192)
+        self._plan_llm = OllamaJSONClient(model=settings.ollama_review_model or answer_model)
         self._rebuild_executor()
         logger.info("AgentService ready with persona '%s'", self._current_persona_key)
 
@@ -243,6 +246,7 @@ class AgentService:
         """Runs the agent on a user query and records turns into SessionContext."""
         history_text = ctx.format_for_prompt()
         topic = ctx.get_fact("presentation_topic")
+        persona = self._get_active_persona()
         review_codes = []
 
         try:
@@ -250,12 +254,22 @@ class AgentService:
                 raise ValueError("Invalid question length")
             search_query = f"{topic}: {question}" if topic else question
             chunks = filter_evidence(self._rag.query(search_query, top_k=4))
+            technical = getattr(settings, "response_style", "plain") == "technical"
+            plan = plan_question(self._plan_llm, question, history_text) if technical else {"requirements": [], "tools": []}
+            requirements = plan["requirements"]
+            if technical:
+                # Retrieve per requested part without spending extra LLM/tool
+                # loops to rediscover evidence already in the local corpus.
+                for part in requirements[:3]:
+                    query = f"{topic}: {part['request']}" if topic else part["request"]
+                    chunks.extend(filter_evidence(self._rag.query(query, top_k=2)))
+                chunks = list(dict.fromkeys(chunks))
             try:
                 result = self._executor.invoke({
                     "input": f"Current product: {topic}\nQuestion: {question}" if topic else question,
                     "history": history_text or "(no previous turns)",
                     "evidence": "\n---\n".join(chunks) if chunks else "No project evidence available. Do not invent project facts.",
-                })
+                }) if not technical or plan["tools"] else {"intermediate_steps": []}
             except Exception:
                 logger.warning("Agent planning failed; trying grounded plain response", exc_info=True)
                 result = {"output": "", "intermediate_steps": []}
@@ -291,12 +305,12 @@ class AgentService:
                         "Do not repeat jargon from source text or earlier answers; translate it into familiar words. "
                         "Determine reply language from the QUESTION only, not from documents or history. "
                         "For an English question every answer field must be English even when all documents are Vietnamese. "
-                        "Do not append steps to a complete simple answer. Prefer empty keywords/steps over English filler."),
+                        "Do not append steps to a complete simple answer. Prefer empty keywords/steps over English filler.\n" + PERSONA_RULE),
                     HumanMessage(content=json.dumps({"question": question, "presentation_topic": topic, "history": history_text,
-                        "evidence": observed, "tool_observations": tool_facts}, ensure_ascii=False)),
+                        "presentation_persona": persona, "requirements": requirements, "evidence": observed, "tool_observations": tool_facts}, ensure_ascii=False)),
                 ]
                 if getattr(settings, "response_style", "plain") == "technical":
-                    messages = [SystemMessage(content=RESPONSE_STYLES["technical"] + "\n" + EXPERT_GROUNDING), messages[-1]]
+                    messages = [SystemMessage(content=RESPONSE_STYLES["technical"] + "\n" + EXPERT_GROUNDING + "\n" + PERSONA_RULE), messages[-1]]
                 response = self._plain_llm.invoke(messages)
                 parsed = parse_suggestion(response.content)
                 if missing_requested_example(question, parsed):
@@ -313,7 +327,13 @@ class AgentService:
                         parsed["quality_warnings"] = ["missing_requested_example"]
             else:
                 parsed = _parse_agent_output(result.get("output", ""))
-            issues = review_answer(self._review_llm, question, parsed, observed, tool_facts, history_text, topic)
+            def review(candidate):
+                if technical:
+                    return review_grounding(self._review_llm, question, candidate, observed, tool_facts,
+                                            requirements, history_text, topic)
+                return review_answer(self._review_llm, question, candidate, observed, tool_facts, history_text, topic)
+
+            issues = review(parsed)
             if issues:
                 review_codes = list(dict.fromkeys(item["code"] for item in issues))
                 logger.warning("Answer requires repair: %s", review_codes)
@@ -324,18 +344,20 @@ class AgentService:
                     "task": "Rewrite the complete answer from original evidence and question. Resolve ALL review issues, including every requested subquestion. Remove unsupported claims; do not merely add disclaimers to them. Label proposals explicitly. Return complete corrected JSON."
                 }, ensure_ascii=False))])
                 parsed = parse_suggestion(repaired.content)
-                remaining = review_answer(self._review_llm, question, parsed, observed, tool_facts, history_text, topic)
+                remaining = review(parsed)
                 if remaining:
                     review_codes = list(dict.fromkeys(item["code"] for item in remaining))
                     logger.warning("Answer rejected after repair: %s", review_codes)
                     raise ValueError("Answer did not pass evidence/language/completeness review")
             parsed["review_status"] = "model_reviewed"
+            parsed["review_method"] = "coverage_and_quote_checks" if technical else "issues_review"
             parsed["retrieved_sources"] = list(dict.fromkeys(
                 item.split("]", 1)[0] + "]" for item in observed
                 if item.startswith("[") and "]" in item
             ))
             if include_evidence:
                 parsed["retrieved_chunks"] = list(dict.fromkeys(observed))
+                parsed["question_requirements"] = requirements
         except Exception:
             logger.exception("Agent execution failed")
             parsed = {

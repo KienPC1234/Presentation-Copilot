@@ -21,7 +21,10 @@ Các ngưỡng trên là mục tiêu kỹ thuật đặt trước cho vòng nghi
 phải số đo đã đạt hoặc cam kết cho mọi phần cứng. Không dùng tỷ lệ câu trả lời
 đúng JSON, từ khóa hay lời tự đánh giá của mô hình làm tỷ lệ chính xác ngữ nghĩa.
 
-Kết quả vòng hiện tại và các lỗi chưa đóng: [PROFESSIONAL_VALIDATION.md](PROFESSIONAL_VALIDATION.md).
+Checkpoint mới nhất: [STRUCTURED_AI_REVIEW.md](STRUCTURED_AI_REVIEW.md): 113 test
+backend qua; chuyên gia V2 7/8 và hội thoại 7/8 không lỗi, chưa đủ nghiệm thu.
+Các cổng trên vẫn mở. Số 77 test trong bảng là mốc trước; kết quả ASR và tải
+trước đó: [PROFESSIONAL_VALIDATION.md](PROFESSIONAL_VALIDATION.md).
 
 ## Chu kỳ thực hiện
 

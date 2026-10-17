@@ -1,0 +1,83 @@
+{
+  "scope": "Generated Vietnamese expert questions; real RAG/model; concurrent independent agent sessions, not network or acoustic meeting test; semantic review required",
+  "model": "gpt-oss:120b-cloud",
+  "answer_model": "gemma4:31b-cloud",
+  "review_model": "gemma4:31b-cloud",
+  "style": "technical",
+  "workers": 8,
+  "evidence_sha256": "dec463ad64f894f46c12a680c47abbfed23a8d153f398bfcbf54c8a192f20199",
+  "suite": "acceptance",
+  "runs": 1,
+  "elapsed_seconds": 23.6,
+  "valid_answers": 7,
+  "blocked_or_failed_answers": 1,
+  "execution_gate_passed": false,
+  "all_requests_p95_seconds": 23.59,
+  "percentile_method": "nearest rank; includes blocked requests; not semantic accuracy",
+  "answers": [
+    {
+      "run": 1,
+      "role": "draft_access_deadline",
+      "seconds": 13.05,
+      "is_error": false,
+      "error_code": null,
+      "review_status": "model_reviewed"
+    },
+    {
+      "run": 1,
+      "role": "callee_body_missing",
+      "seconds": 12.11,
+      "is_error": false,
+      "error_code": null,
+      "review_status": "model_reviewed"
+    },
+    {
+      "run": 1,
+      "role": "empty_submission_key",
+      "seconds": 12.92,
+      "is_error": false,
+      "error_code": null,
+      "review_status": "model_reviewed"
+    },
+    {
+      "run": 1,
+      "role": "deadline_calculation",
+      "seconds": 14.8,
+      "is_error": false,
+      "error_code": null,
+      "review_status": "model_reviewed"
+    },
+    {
+      "run": 1,
+      "role": "timestamp_race",
+      "seconds": 16.56,
+      "is_error": false,
+      "error_code": null,
+      "review_status": "model_reviewed"
+    },
+    {
+      "run": 1,
+      "role": "strict_deadline_boundary",
+      "seconds": 22.83,
+      "is_error": false,
+      "error_code": null,
+      "review_status": "model_reviewed"
+    },
+    {
+      "run": 1,
+      "role": "demo_not_service_proof",
+      "seconds": 16.9,
+      "is_error": false,
+      "error_code": null,
+      "review_status": "model_reviewed"
+    },
+    {
+      "run": 1,
+      "role": "staged_rollout_preserve_new_work",
+      "seconds": 23.59,
+      "is_error": false,
+      "error_code": null,
+      "review_status": null
+    }
+  ]
+}

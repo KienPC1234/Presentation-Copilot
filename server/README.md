@@ -2,6 +2,11 @@
 
 Python WebSocket server that receives PCM audio from a C# client, transcribes it with Whisper, retrieves relevant project context via RAG (ChromaDB), and returns structured presentation suggestions from an Ollama LLM.
 
+Professional acceptance is still pending. The technical-style structured review,
+new evaluation runners, reproducible commands and known limits are documented in
+[STRUCTURED_AI_REVIEW.md](../STRUCTURED_AI_REVIEW.md). Plain style still uses the
+earlier review path; model-reviewed output is not independently verified truth.
+
 ---
 
 ## Prerequisites

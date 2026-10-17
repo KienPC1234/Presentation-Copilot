@@ -1,0 +1,6 @@
+{
+  "original_fixture_sha256": "57e76e74853a5b818db75c54e20357f7a8954a7e61d9297d4b9cd40db3d9a253",
+  "neutral_fixture_sha256": "dec463ad64f894f46c12a680c47abbfed23a8d153f398bfcbf54c8a192f20199",
+  "unchanged_source_excerpt_sha256": "60600e257d0c2b10cce49c31082151523b85399902a6f4aedab41de54392a9b7",
+  "change": "Curator instructions and unsupported negative technology framing removed; all original code/HTML excerpts preserved."
+}

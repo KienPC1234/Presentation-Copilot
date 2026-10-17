@@ -5,6 +5,7 @@ import tempfile
 from threading import Event
 import unittest
 from unittest.mock import patch
+from langchain_core.documents import Document
 
 from services import rag_service as module
 
@@ -98,3 +99,39 @@ class RagLifecycleTests(unittest.TestCase):
                     release.set()
                 update.result(timeout=5)
                 self.assertIn("Original", read.result(timeout=5)[0])
+
+    def test_every_split_code_chunk_keeps_its_branch_hint(self):
+        self.file.write_text("case 'status':\n" + "\n".join(f"// status detail {i}" for i in range(120))
+                             + "\nreturn completed;\ncase 'commit':\nreturn replayed;", encoding="utf-8")
+        self.rag.ingest_documents(str(self.corpus))
+        stored = self.rag._vectorstore._collection.get(include=["documents", "metadatas"])
+        self.assertGreater(len(stored["documents"]), 2)
+        for content, metadata in zip(stored["documents"], stored["metadatas"]):
+            self.assertIn("[Lexical scope hint: " + metadata["scope_hint"] + "]", content)
+            if "return replayed" in content:
+                self.assertEqual(metadata["scope_hint"], "switch case commit")
+            if metadata["scope_hint"] == "switch case status":
+                self.assertNotIn("return replayed", content)
+
+    def test_identifier_route_recovers_formula_when_dense_route_returns_only_calls(self):
+        self.file.write_text("function deadline_window() { started_at + duration; min(ends_at); }\n" +
+                             "\n".join(f"case 'action_{i}': deadline_window(); ends_at;" for i in range(8)), encoding="utf-8")
+        self.rag.ingest_documents(str(self.corpus))
+        stored = self.rag._vectorstore._collection.get(include=["documents", "metadatas"])
+        calls = [Document(page_content=text, metadata=metadata) for text, metadata in zip(stored["documents"], stored["metadatas"])
+                 if metadata.get("scope_hint")]
+        with patch.object(self.rag._vectorstore, "similarity_search", return_value=calls[:4]):
+            results = self.rag.query("deadline_window started_at duration ends_at", top_k=4)
+        self.assertTrue(any("started_at + duration" in result for result in results))
+        self.assertTrue(any("Lexical scope hint" in result for result in results))
+
+    def test_intentional_clear_leaves_usable_empty_index(self):
+        self.assertTrue(self.rag.clear_store())
+        self.assertEqual(self.rag.get_stats()["index_state"], "ready")
+        self.assertEqual(self.rag.query("project"), [])
+
+    def test_unavailable_store_cannot_report_clear_success_or_ready(self):
+        self.rag._vectorstore = None
+        with patch.object(self.rag, "_load_existing_store", return_value=None):
+            self.assertFalse(self.rag.clear_store())
+        self.assertEqual(self.rag.get_stats()["index_state"], "unavailable")

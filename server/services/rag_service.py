@@ -12,6 +12,9 @@ from langchain_ollama import OllamaEmbeddings
 from langchain_community.vectorstores import Chroma
 
 from config import settings
+from services.evidence_chunks import split_case_scopes
+from services.hybrid_retrieval import IdentifierIndex, merge_results
+from langchain_core.documents import Document
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +58,7 @@ class RAGService:
         self._pending_write = Path(self._persist_dir) / ".index-write-pending"
         self._vectorstore: Chroma | None = None
         self._indexed_files: set[str] = set()
+        self._identifier_index = IdentifierIndex([])
         self._load_existing_store()
 
     def _load_existing_store(self) -> None:
@@ -70,10 +74,18 @@ class RAGService:
                                    self._vectorstore._collection.get(include=["metadatas"])["metadatas"]
                                    if metadata}
             self._indexed_files.discard("")
+            self._refresh_identifier_index()
             logger.info("Loaded ChromaDB collection '%s' with %d chunks", _COLLECTION_NAME, count)
         except Exception:
             logger.warning("Could not load ChromaDB store, will create on first ingest")
             self._vectorstore = None
+
+    def _refresh_identifier_index(self):
+        stored = self._vectorstore._collection.get(include=["documents", "metadatas"])
+        self._identifier_index = IdentifierIndex([
+            Document(page_content=text, metadata=metadata or {})
+            for text, metadata in zip(stored["documents"], stored["metadatas"]) if isinstance(text, str)
+        ])
 
     def verify_path(self, target_path: str) -> dict[str, Any]:
         """Validates existence, read permissions, and counts indexable files."""
@@ -164,7 +176,10 @@ class RAGService:
             chunk_overlap=_CHUNK_OVERLAP,
             separators=["\n\n", "\n", ";", ".", " ", ""],
         )
-        chunks = splitter.split_documents(raw_docs)
+        chunks = splitter.split_documents(split_case_scopes(raw_docs))
+        for chunk in chunks:
+            if chunk.metadata.get("scope_hint"):
+                chunk.page_content = f"[Lexical scope hint: {chunk.metadata['scope_hint']}]\n{chunk.page_content}"
         logger.info("Split %d documents into %d chunks", len(raw_docs), len(chunks))
         if self._vectorstore is None:
             self._load_existing_store()
@@ -203,6 +218,7 @@ class RAGService:
                 self._vectorstore._collection.delete(ids=stale_ids)
             refreshed = self._vectorstore._collection.get(include=["metadatas"])
             self._indexed_files = {m["source_path"] for m in refreshed["metadatas"] if m and m.get("source_path")}
+            self._refresh_identifier_index()
             self._pending_write.unlink()
 
         return {
@@ -217,7 +233,7 @@ class RAGService:
     def clear_store(self) -> bool:
         """Clears the collection so new documents can be ingested fresh."""
         try:
-            if self._pending_write.exists() and self._vectorstore is None:
+            if self._vectorstore is None:
                 self._load_existing_store()
                 if self._vectorstore is None:
                     return False
@@ -225,7 +241,11 @@ class RAGService:
                 self._vectorstore.delete_collection()
                 self._vectorstore = None
                 self._indexed_files.clear()
+                self._identifier_index = IdentifierIndex([])
                 logger.info("ChromaDB collection cleared")
+                self._load_existing_store()
+                if self._vectorstore is None:
+                    return False
             self._pending_write.unlink(missing_ok=True)
             return True
         except Exception as exc:
@@ -236,18 +256,20 @@ class RAGService:
     def get_stats(self) -> dict[str, Any]:
         """Returns statistics about the current vector collection."""
         count = 0
+        state = "ready" if self._vectorstore is not None else "unavailable"
         if self._vectorstore is not None:
             try:
                 count = self._vectorstore._collection.count()
             except Exception:
                 count = 0
+                state = "unavailable"
 
         return {
             "collection_name": _COLLECTION_NAME,
             "total_chunks": count,
             "indexed_files_count": len(self._indexed_files),
             "persist_directory": self._persist_dir,
-            "index_state": "needs_rebuild" if self._pending_write.exists() else "ready",
+            "index_state": "needs_rebuild" if self._pending_write.exists() else state,
         }
 
     @_serialized
@@ -259,7 +281,9 @@ class RAGService:
             raise RuntimeError("Retrieval store unavailable")
 
         try:
-            results = self._vectorstore.similarity_search(question, k=top_k)
+            semantic = self._vectorstore.similarity_search(question, k=top_k)
+            lexical = self._identifier_index.search(question, top_k)
+            results = merge_results(semantic, lexical, top_k)
             chunks = []
             for doc in results:
                 citation = doc.metadata.get("citation", doc.metadata.get("source_name", ""))

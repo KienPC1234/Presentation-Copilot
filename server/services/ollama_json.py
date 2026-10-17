@@ -12,14 +12,15 @@ from config import settings
 
 
 class OllamaJSONClient:
-    def __init__(self, model=None):
+    def __init__(self, model=None, num_predict=4096):
         self.model = model or settings.ollama_model
+        self.num_predict = num_predict
 
     def invoke(self, messages):
         roles = {"human": "user", "system": "system", "ai": "assistant"}
         body = {"model": self.model, "stream": False, "format": "json",
                 "messages": [{"role": roles[m.type], "content": m.content} for m in messages],
-                "options": {"temperature": 0, "num_predict": 4096}}
+                "options": {"temperature": 0, "num_predict": self.num_predict}}
         if settings.ollama_json_disable_thinking:
             body["think"] = False
         request = Request(settings.ollama_base_url.rstrip("/") + "/api/chat",

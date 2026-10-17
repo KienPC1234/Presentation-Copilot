@@ -1,0 +1,173 @@
+{
+  "scope": "Real-model reviewer calibration on controlled synthetic counterexamples.\n\nThis tests the verifier, not project retrieval, speech or meeting accuracy.\n",
+  "model": "gemma4:31b-cloud",
+  "results": [
+    {
+      "id": "wrong_action",
+      "expected": "reject",
+      "outcome": "reject",
+      "matched": true,
+      "issues": [
+        {
+          "code": "contradiction",
+          "detail": "The claim that 'status' returns 'replayed=true' is contradicted by the evidence, which shows 'replayed' is returned by 'commit' while 'status' returns 'completed' and 'result'."
+        }
+      ],
+      "seconds": 1.34,
+      "reviewer_called": true
+    },
+    {
+      "id": "valid_action",
+      "expected": "accept",
+      "outcome": "accept",
+      "matched": true,
+      "issues": [],
+      "seconds": 2.84,
+      "reviewer_called": true
+    },
+    {
+      "id": "wrong_atomicity",
+      "expected": "reject",
+      "outcome": "reject",
+      "matched": true,
+      "issues": [
+        {
+          "code": "unsupported_claim",
+          "detail": "The claim that commit_result is proven to write atomically exactly once is unsupported; evidence e2 explicitly states 'Final result persistence code is not supplied'."
+        }
+      ],
+      "seconds": 2.72,
+      "reviewer_called": true
+    },
+    {
+      "id": "valid_atomicity_unknown",
+      "expected": "accept",
+      "outcome": "accept",
+      "matched": true,
+      "issues": [],
+      "seconds": 1.66,
+      "reviewer_called": true
+    },
+    {
+      "id": "wrong_deadline",
+      "expected": "reject",
+      "outcome": "reject",
+      "matched": true,
+      "issues": [
+        {
+          "code": "contradiction",
+          "detail": "The claim that the system returns an error and uses no answer is contradicted by evidence e1, which states that draft.answers are used when now > deadline + 15."
+        }
+      ],
+      "seconds": 1.68,
+      "reviewer_called": true
+    },
+    {
+      "id": "valid_deadline",
+      "expected": "accept",
+      "outcome": "accept",
+      "matched": true,
+      "issues": [],
+      "seconds": 2.4,
+      "reviewer_called": true
+    },
+    {
+      "id": "missing_changed_id",
+      "expected": "reject",
+      "outcome": "reject",
+      "matched": true,
+      "issues": [
+        {
+          "code": "missing_part",
+          "detail": "The candidate does not provide a proposal for modifying IDs to test unauthorized access (r2)."
+        }
+      ],
+      "seconds": 3.91,
+      "reviewer_called": true
+    },
+    {
+      "id": "valid_changed_id_test",
+      "expected": "accept",
+      "outcome": "accept",
+      "matched": true,
+      "issues": [],
+      "seconds": 2.29,
+      "reviewer_called": true
+    },
+    {
+      "id": "wrong_status_precondition",
+      "expected": "reject",
+      "outcome": "reject",
+      "matched": true,
+      "issues": [
+        {
+          "code": "contradiction",
+          "detail": "The claim that a valid key belonging to another user results in HTTP 422 is contradicted by the evidence, which states HTTP 422 is for malformed keys."
+        }
+      ],
+      "seconds": 1.21,
+      "reviewer_called": true
+    },
+    {
+      "id": "invented_sla_in_proposal",
+      "expected": "reject",
+      "outcome": "reject",
+      "matched": true,
+      "issues": [
+        {
+          "code": "unsupported_claim",
+          "detail": "Field key_point introduces numeric target 2s not provided by the question/evidence/calculator. Remove arbitrary thresholds; state that acceptance criteria must be agreed and measured."
+        }
+      ],
+      "seconds": 0.0,
+      "reviewer_called": false
+    },
+    {
+      "id": "wrong_design_rationale",
+      "expected": "reject",
+      "outcome": "reject",
+      "matched": true,
+      "issues": [
+        {
+          "code": "unsupported_claim",
+          "detail": "The claim that the design is to help users continue their work conveniently is not supported by the provided evidence, which only contains a code snippet."
+        }
+      ],
+      "seconds": 1.03,
+      "reviewer_called": true
+    },
+    {
+      "id": "valid_design_unknown",
+      "expected": "accept",
+      "outcome": "accept",
+      "matched": true,
+      "issues": [],
+      "seconds": 3.89,
+      "reviewer_called": true
+    },
+    {
+      "id": "wrong_blanket_false_summary",
+      "expected": "reject",
+      "outcome": "reject",
+      "matched": true,
+      "issues": [
+        {
+          "code": "contradiction",
+          "detail": "A blanket 'all/both claims are false' conflicts with an unverified/unknown claim elsewhere in the answer. Give a separate, scoped conclusion for each claim; unknown is not false."
+        }
+      ],
+      "seconds": 0.0,
+      "reviewer_called": false
+    },
+    {
+      "id": "valid_distinct_uncertainty",
+      "expected": "accept",
+      "outcome": "accept",
+      "matched": true,
+      "issues": [],
+      "seconds": 2.49,
+      "reviewer_called": true
+    }
+  ],
+  "all_matched": true
+}
