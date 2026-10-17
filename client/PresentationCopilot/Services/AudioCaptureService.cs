@@ -30,6 +30,10 @@ public sealed class AudioCaptureService : IDisposable
     private BufferedWaveProvider? _fallbackWaveProvider;
     private MediaFoundationResampler? _fallbackResampler;
 
+    // Reused (only under _converterLock) so the resampler path stays allocation-light.
+    private readonly byte[] _resampleReadBuffer = new byte[8192];
+    private readonly MemoryStream _resampleStream = new();
+
     public int BufferSeconds { get; private set; }
 
     /// <summary>Loopback (speakers) or Microphone.</summary>
@@ -59,14 +63,15 @@ public sealed class AudioCaptureService : IDisposable
     /// </summary>
     public void ChangeSource(AudioSourceKind source, string? deviceId)
     {
+        string? normalized = string.IsNullOrWhiteSpace(deviceId) ? null : deviceId;
         bool same = Source == source &&
-                    string.Equals(DeviceId, deviceId, StringComparison.OrdinalIgnoreCase);
+                    string.Equals(DeviceId, normalized, StringComparison.OrdinalIgnoreCase);
         if (same && _capture is not null) return;
 
         bool wasRunning = _capture is not null;
         if (wasRunning) Stop();
         Source = source;
-        DeviceId = string.IsNullOrWhiteSpace(deviceId) ? null : deviceId;
+        DeviceId = normalized;
         if (wasRunning) Start();
     }
 
@@ -146,9 +151,15 @@ public sealed class AudioCaptureService : IDisposable
         {
             using var enumerator = new MMDeviceEnumerator();
             foreach (var device in enumerator.EnumerateAudioEndPoints(DataFlow.Render, DeviceState.Active))
+            {
                 list.Add(new AudioDeviceInfo($"System audio — {device.FriendlyName}", device.ID, AudioSourceKind.Loopback));
+                device.Dispose();
+            }
             foreach (var device in enumerator.EnumerateAudioEndPoints(DataFlow.Capture, DeviceState.Active))
+            {
                 list.Add(new AudioDeviceInfo($"Microphone — {device.FriendlyName}", device.ID, AudioSourceKind.Microphone));
+                device.Dispose();
+            }
         }
         catch (Exception ex)
         {
@@ -170,7 +181,8 @@ public sealed class AudioCaptureService : IDisposable
                 foreach (var device in enumerator.EnumerateAudioEndPoints(flow, DeviceState.Active))
                 {
                     if (string.Equals(device.ID, id, StringComparison.OrdinalIgnoreCase))
-                        return device;
+                        return device;   // caller keeps this one alive
+                    device.Dispose();
                 }
             }
         }
@@ -242,14 +254,13 @@ public sealed class AudioCaptureService : IDisposable
         if (_fallbackWaveProvider != null && _fallbackResampler != null)
         {
             _fallbackWaveProvider.AddSamples(raw, 0, length);
-            using var memStream = new MemoryStream();
-            byte[] readBuf = new byte[4096];
+            _resampleStream.SetLength(0);
             int read;
-            while ((read = _fallbackResampler.Read(readBuf, 0, readBuf.Length)) > 0)
+            while ((read = _fallbackResampler.Read(_resampleReadBuffer, 0, _resampleReadBuffer.Length)) > 0)
             {
-                memStream.Write(readBuf, 0, read);
+                _resampleStream.Write(_resampleReadBuffer, 0, read);
             }
-            return memStream.ToArray();
+            return _resampleStream.ToArray();
         }
 
         return Array.Empty<byte>();
@@ -289,5 +300,6 @@ public sealed class AudioCaptureService : IDisposable
         _disposed = true;
 
         Stop();
+        _resampleStream.Dispose();
     }
 }

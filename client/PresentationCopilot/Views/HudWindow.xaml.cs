@@ -222,14 +222,6 @@ public partial class HudWindow : Window
         HideWithFade();
     }
 
-    private void Window_KeyDown(object sender, KeyEventArgs e)
-    {
-        if (e.Key == Key.Escape)
-        {
-            HideWithFade();
-        }
-    }
-
     /// <summary>Slides the HUD into view with a smooth fade-in.</summary>
     public void ShowWithFade()
     {

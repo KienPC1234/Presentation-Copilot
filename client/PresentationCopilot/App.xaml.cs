@@ -23,14 +23,17 @@ public partial class App : Application
 
     private void OnDomainUnhandledException(object sender, UnhandledExceptionEventArgs e)
     {
-        if (e.ExceptionObject is Exception ex)
-            ShowFatalError(ex);
+        // Raised on the faulting (possibly non-UI) thread; showing a MessageBox here
+        // can deadlock. Log it and let the process terminate.
+        System.Diagnostics.Debug.WriteLine($"[App] Unhandled domain exception: {e.ExceptionObject}");
     }
 
     private void OnUnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs e)
     {
+        // Faulted tasks that nobody awaited (common in networking libraries) must not
+        // pop a blocking fatal-error dialog. Observe and log instead.
         e.SetObserved();
-        Dispatcher.Invoke(() => ShowFatalError(e.Exception.InnerException ?? e.Exception));
+        System.Diagnostics.Debug.WriteLine($"[App] Unobserved task exception: {e.Exception}");
     }
 
     private static void ShowFatalError(Exception ex)

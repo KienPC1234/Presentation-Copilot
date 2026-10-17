@@ -3,7 +3,6 @@ using PresentationCopilot.Models;
 using PresentationCopilot.Services;
 using PresentationCopilot.ViewModels;
 using PresentationCopilot.Views;
-using System.IO;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Threading;
@@ -40,9 +39,7 @@ public partial class MainWindow : Window
         _wsService = new WebSocketService();
         _hotkeyService = new HotkeyService();
 
-        _viewModel = new MainViewModel(
-            toggleRecording: ToggleRecording,
-            triggerAnalysis: () => _ = TriggerAnalysisAsync());
+        _viewModel = new MainViewModel();
 
         _viewModel.OpacityTarget = _config.OpacityLevel;
 
@@ -423,7 +420,7 @@ public partial class MainWindow : Window
                 ? fs.EnumerateArray().Select(e => e.GetString() ?? "").ToArray()
                 : [];
 
-            _viewModel.ApplySuggestion(keyPoint, keywords, steps, json, transcript);
+            _viewModel.ApplySuggestion(keyPoint, keywords, steps, transcript);
             var sourceList = root.TryGetProperty("retrieved_sources", out var sources) &&
                 sources.ValueKind == JsonValueKind.Array
                 ? sources.EnumerateArray().Select(e => e.GetString()).Where(s => !string.IsNullOrWhiteSpace(s)).ToArray()
@@ -492,6 +489,16 @@ public partial class MainWindow : Window
     private void MenuTogglePin_Click(object sender, RoutedEventArgs e)
     {
         _hudWindow?.SetClickThrough(!_viewModel.IsClickThrough);
+    }
+
+    private void MenuAnalyze_Click(object sender, RoutedEventArgs e)
+    {
+        _ = TriggerAnalysisAsync();
+    }
+
+    private void MenuToggleRecording_Click(object sender, RoutedEventArgs e)
+    {
+        ToggleRecording();
     }
 
     private void MenuHideTray_Click(object sender, RoutedEventArgs e)

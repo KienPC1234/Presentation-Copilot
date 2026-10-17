@@ -115,13 +115,6 @@ public sealed class WebSocketService : IAsyncDisposable
         }
     }
 
-    public async Task DisconnectAsync()
-    {
-        if (_client is null) return;
-        await _client.Stop(WebSocketCloseStatus.NormalClosure, "Client disconnecting");
-        ConnectionStateChanged?.Invoke(this, false);
-    }
-
     private void OnMessageReceived(ResponseMessage message)
     {
         if (message.MessageType == WebSocketMessageType.Text && message.Text is not null)

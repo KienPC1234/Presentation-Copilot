@@ -11,8 +11,7 @@
         ResizeMode="NoResize"
         Width="460"
         SizeToContent="Height"
-        Left="50" Top="50"
-        KeyDown="Window_KeyDown">
+        Left="50" Top="50">
 
     <Window.Resources>
         <converters:BoolToColorConverter x:Key="BoolToColor" />

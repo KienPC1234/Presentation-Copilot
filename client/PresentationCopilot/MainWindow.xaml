@@ -25,6 +25,11 @@
                     <MenuItem Header="Pin / Unpin HUD (click-through)"
                               Click="MenuTogglePin_Click"/>
                     <Separator/>
+                    <MenuItem Header="Analyze now"
+                              Click="MenuAnalyze_Click"/>
+                    <MenuItem Header="Pause / Resume recording"
+                              Click="MenuToggleRecording_Click"/>
+                    <Separator/>
                     <MenuItem Header="Settings…"
                               Click="MenuSettings_Click"/>
                     <Separator/>

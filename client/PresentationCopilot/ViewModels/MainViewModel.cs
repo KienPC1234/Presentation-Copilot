@@ -1,7 +1,6 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
-using System.Windows.Input;
 
 namespace PresentationCopilot.ViewModels;
 
@@ -17,13 +16,6 @@ public sealed class MainViewModel : INotifyPropertyChanged
     {
         get => _questionText;
         set => SetField(ref _questionText, value);
-    }
-
-    private string _suggestionText = string.Empty;
-    public string SuggestionText
-    {
-        get => _suggestionText;
-        set => SetField(ref _suggestionText, value);
     }
 
     private string _keyPoint = "Ready. Press your hotkey when asked a question.";
@@ -49,13 +41,6 @@ public sealed class MainViewModel : INotifyPropertyChanged
         set => SetField(ref _toggleHotkeyHint, value);
     }
 
-    private string _keywords = string.Empty;
-    public string Keywords
-    {
-        get => _keywords;
-        set => SetField(ref _keywords, value);
-    }
-
     private string _retrievedSources = string.Empty;
     public string RetrievedSources
     {
@@ -69,13 +54,6 @@ public sealed class MainViewModel : INotifyPropertyChanged
 
     /// <summary>True when at least one related source was returned.</summary>
     public bool HasSources => !string.IsNullOrWhiteSpace(_retrievedSources);
-
-    private ObservableCollection<string> _frameworkSteps = [];
-    public ObservableCollection<string> FrameworkSteps
-    {
-        get => _frameworkSteps;
-        set => SetField(ref _frameworkSteps, value);
-    }
 
     private bool _isConnected;
     public bool IsConnected
@@ -168,52 +146,25 @@ public sealed class MainViewModel : INotifyPropertyChanged
     public bool HasSteps => _numberedSteps.Count > 0;
     public bool HasQuestion => !string.IsNullOrWhiteSpace(_questionText);
 
-    // ── Commands ──────────────────────────────────────────────────────────
-
-    public ICommand ToggleRecordingCommand { get; }
-    public ICommand TriggerAnalysisCommand { get; }
-
-    private readonly Action _toggleRecording;
-    private readonly Action _triggerAnalysis;
-
-    public MainViewModel(Action toggleRecording, Action triggerAnalysis)
-    {
-        _toggleRecording = toggleRecording;
-        _triggerAnalysis = triggerAnalysis;
-
-        ToggleRecordingCommand = new RelayCommand(
-            execute: _ => _toggleRecording(),
-            canExecute: _ => IsConnected);
-
-        TriggerAnalysisCommand = new RelayCommand(
-            execute: _ => _triggerAnalysis(),
-            canExecute: _ => IsConnected && IsRecording && !IsBusy);
-    }
+    // ── Mutations (UI thread only) ────────────────────────────────────────
 
     /// <summary>
     /// Applies a parsed suggestion payload to the view model properties.
     /// Must be called on the UI thread.
     /// </summary>
-    public void ApplySuggestion(string keyPoint, IEnumerable<string> keywords, IEnumerable<string> steps, string rawJson, string question = "")
+    public void ApplySuggestion(string keyPoint, IEnumerable<string> keywords, IEnumerable<string> steps, string question = "")
     {
         QuestionText = question;
         KeyPoint = string.IsNullOrWhiteSpace(keyPoint) ? "No concise answer generated." : keyPoint;
 
-        var kwList = keywords.ToList();
-        Keywords = string.Join("  ·  ", kwList);
-
         KeywordsCollection.Clear();
-        foreach (var kw in kwList)
+        foreach (var kw in keywords)
             KeywordsCollection.Add(kw);
 
-        SuggestionText = rawJson;
-
-        FrameworkSteps.Clear();
         NumberedSteps.Clear();
         int i = 1;
         foreach (var step in steps)
         {
-            FrameworkSteps.Add(step);
             NumberedSteps.Add(new NumberedStep(i.ToString(), step));
             i++;
         }
@@ -246,27 +197,4 @@ public sealed class MainViewModel : INotifyPropertyChanged
         OnPropertyChanged(name);
         return true;
     }
-}
-
-// ── Minimal RelayCommand ──────────────────────────────────────────────────
-
-public sealed class RelayCommand : ICommand
-{
-    private readonly Action<object?> _execute;
-    private readonly Predicate<object?>? _canExecute;
-
-    public RelayCommand(Action<object?> execute, Predicate<object?>? canExecute = null)
-    {
-        _execute = execute;
-        _canExecute = canExecute;
-    }
-
-    public event EventHandler? CanExecuteChanged
-    {
-        add => CommandManager.RequerySuggested += value;
-        remove => CommandManager.RequerySuggested -= value;
-    }
-
-    public bool CanExecute(object? parameter) => _canExecute?.Invoke(parameter) ?? true;
-    public void Execute(object? parameter) => _execute(parameter);
 }
