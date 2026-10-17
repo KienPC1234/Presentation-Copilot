@@ -292,10 +292,15 @@ public partial class MainWindow : Window
 
     private async Task TriggerAnalysisAsync()
     {
-        if (_viewModel.IsBusy || !_viewModel.IsConnected) return;
+        if (_viewModel.IsBusy) return;
+        if (!_viewModel.IsConnected)
+        {
+            ShowNoAnswer("Not connected to the server — check the server URI in Settings.", "Disconnected");
+            return;
+        }
         if (!_viewModel.IsRecording)
         {
-            _viewModel.StatusMessage = "Recording is paused";
+            ShowNoAnswer("Recording is paused — resume it, then press the hotkey.", "Recording is paused");
             return;
         }
 
@@ -320,9 +325,7 @@ public partial class MainWindow : Window
                 byte[] pcm = _audioService.GetLastSeconds(_config.AudioBufferSeconds);
                 if (pcm.Length == 0)
                 {
-                    _viewModel.StatusMessage = "No audio captured yet";
-                    _pendingRequestId = null;
-                    _viewModel.IsBusy = false;
+                    ShowNoAnswer("No audio captured yet — speak, then press the hotkey again.", "No audio captured yet");
                     return;
                 }
 
@@ -338,9 +341,7 @@ public partial class MainWindow : Window
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"[MainWindow] Analysis error: {ex.Message}");
-            _viewModel.StatusMessage = $"Error: {ex.Message}";
-            _pendingRequestId = null;
-            _viewModel.IsBusy = false;
+            ShowNoAnswer($"Could not send the request: {ex.Message}", "Send failed");
         }
     }
 
@@ -351,13 +352,33 @@ public partial class MainWindow : Window
             await Task.Delay(TimeSpan.FromMinutes(3), _cts.Token);
             if (_pendingRequestId == requestId)
             {
-                _pendingRequestId = null;
-                _viewModel.IsBusy = false;
-                _viewModel.StatusMessage = "Analysis timed out";
+                ShowNoAnswer("No answer came back — the server may be busy. Try again.", "Analysis timed out");
             }
         }
         catch (OperationCanceledException) { }
     }
+
+    /// <summary>
+    /// Shows a clear "nothing to answer" card instead of leaving the previous
+    /// suggestion on screen when a request produced no question/audio/speech.
+    /// </summary>
+    private void ShowNoAnswer(string cardText, string statusText)
+    {
+        _pendingRequestId = null;
+        _viewModel.IsBusy = false;
+        _viewModel.RetrievedSources = "";
+        _viewModel.ApplySuggestion(cardText, [], [], "");
+        _viewModel.StatusMessage = statusText;
+        _hudWindow?.ShowWithFade();
+    }
+
+    private static string FriendlyAnalysisMessage(string serverMessage) => serverMessage switch
+    {
+        "No audio buffered" => "No audio yet — speak, then press the hotkey again.",
+        "No speech detected" => "No speech detected — speak clearly and try again.",
+        "Analysis already in progress" => "Still analyzing the previous question…",
+        _ => serverMessage
+    };
 
     private void OnSuggestionReceived(string json)
     {
@@ -403,10 +424,9 @@ public partial class MainWindow : Window
             }
             if (type == "error")
             {
-                _pendingRequestId = null;
-                _viewModel.IsBusy = false;
-                _viewModel.StatusMessage = root.TryGetProperty("message", out var message)
+                string serverMessage = root.TryGetProperty("message", out var message)
                     ? message.GetString() ?? "Analysis failed" : "Analysis failed";
+                ShowNoAnswer(FriendlyAnalysisMessage(serverMessage), serverMessage);
                 return;
             }
             if (type != "suggestion") return;
