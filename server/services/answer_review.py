@@ -26,6 +26,7 @@ Do not demand source evidence for arithmetic correctly derived from supplied num
 An ambiguous or underspecified question (an undefined "it/that") is answered completely by ONE short clarification request; do not report a missing part for not explaining it.
 When the question asks to compare with external products, people or facts absent from the evidence, saying the excerpts do not cover them is a complete answer; do not require a general-knowledge comparison as a missing part.
 Never report unsupported_claim for a claim the supplied evidence supports. Only report it when you can name what is missing, and never write a detail that says the claim IS supported by the evidence.
+A statement of absence ("the excerpts do not state X", "không nêu", "không cho biết") is verified by X being absent from the excerpts; it is a valid answer, not an unsupported claim. Reserve unsupported_claim for a positive fact (number, feature, endpoint, guarantee) the excerpts do not support.
 Only report material, specific problems; do not critique formatting preferences or invent missing facts.
 Each detail must identify the actual problematic claim or omitted requested part and what must change.
 """
@@ -88,14 +89,31 @@ _SUPPORT_PHRASES = (
     "the evidence supports", "được bằng chứng", "được tài liệu hỗ trợ", "có căn cứ từ tài liệu",
 )
 
+# A statement of absence is proven by the fact being absent, not by a quote. When
+# the reviewer quotes such a statement and still calls it unsupported_claim, it is
+# misreading the rule; drop it.
+_ABSENCE_PHRASES = (
+    "không nêu", "không cho biết", "không có thông tin", "không đề cập", "chưa có thông tin",
+    "không nói", "chưa nêu", "không có bằng chứng", "chưa thấy", "không xác nhận",
+    "does not state", "do not state", "not stated", "no information", "does not mention",
+    "do not mention", "not mentioned", "no statement", "does not describe", "not documented",
+)
+
 
 def drop_self_contradictory(issues):
-    """Remove unsupported_claim items whose own detail says the evidence supports them."""
+    """Remove unsupported_claim items the reviewer itself shows to be wrong.
+
+    Two observed false positives: the detail says the evidence supports the claim,
+    or it quotes the candidate stating that something is absent from the excerpts.
+    """
     kept = []
     for item in issues:
-        detail = str(item.get("detail", "")).lower()
-        if item.get("code") == "unsupported_claim" and any(p in detail for p in _SUPPORT_PHRASES):
-            continue
+        if item.get("code") == "unsupported_claim":
+            detail = str(item.get("detail", "")).lower()
+            if any(p in detail for p in _SUPPORT_PHRASES):
+                continue
+            if any(p in detail for p in _ABSENCE_PHRASES):
+                continue
         kept.append(item)
     return kept
 

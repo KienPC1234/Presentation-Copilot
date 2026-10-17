@@ -15,6 +15,17 @@ class AnswerReviewTests(unittest.TestCase):
         kept = drop_self_contradictory(issues)
         self.assertEqual([item["code"] for item in kept], ["unsupported_claim", "missing_part"])
 
+    def test_absence_statement_is_not_an_unsupported_claim(self):
+        issues = [
+            {"code": "unsupported_claim",
+             "detail": "The candidate asserts 'Tài liệu không nêu cách kiểm chứng độc lập'. The excerpts contain no statement about it."},
+            {"code": "unsupported_claim",
+             "detail": "The candidate claims precision 0.95 on a public benchmark, which the excerpts do not support."},
+        ]
+        kept = drop_self_contradictory(issues)
+        self.assertEqual(len(kept), 1)
+        self.assertIn("0.95", kept[0]["detail"])
+
     def test_valid_empty_review(self):
         self.assertEqual(parse_review('{"issues": []}'), [])
         self.assertEqual(parse_review('```json\n{"issues": []}\n```'), [])
