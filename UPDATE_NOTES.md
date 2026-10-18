@@ -1,5 +1,24 @@
 # Cập nhật: bảo mật, độ ổn định và kiểm tra logic AI
 
+## Chọn model STT bằng đo thật + giữ model nóng — 2026-10-18
+
+- Thêm `server/tools/stt_benchmark.py` (model × clip: giây/câu, WER, có cột "đã lọc" để kiểm tra filter). Đo trên **audio THẬT**: 6 clip FLEURS tiếng Việt (qua `scripts/fetch_fleurs_vi.py`) + 1 clip tiếng Anh thật (jfk), GPU float16:
+
+| model | WER | giây/câu |
+|---|---|---|
+| tiny | 0.45 | 0.42 |
+| base | 0.35 | 0.38 |
+| small | 0.19 | 0.42 |
+| **medium** | **0.09** | **0.57** |
+
+- Tiếng Anh: mọi model đều WER 0.00. VAD (medium): bật 0.09/0.57s vs tắt 0.08/0.54s → VAD không giúp trên clip sạch; đã thêm `WHISPER_VAD_FILTER` / `WHISPER_VAD_MIN_SILENCE_MS` để tắt khi cần.
+- **Filter không cắt nội dung**: `wer_filtered` bằng `wer_raw` gần như mọi dòng (1 dòng tiny còn giảm nhờ filter).
+- **Giữ model nóng**: `WHISPER_PRELOAD=true` nạp model ngay sau khi server sẵn sàng (task nền, không chặn khởi động); model chỉ nạp một lần rồi dùng lại, **không load lại từ đầu mỗi câu**.
+- **Tự nhả khi rảnh**: `WHISPER_IDLE_UNLOAD_SECONDS` (mặc định 1800) unload để trả GPU; câu sau tự nạp lại. `/health` báo `whisper_model_loaded`, `whisper_device`, `whisper_idle_seconds`.
+- Kiểm chứng thật: log `Whisper preloaded on cuda`, `/health idle_s=19`; sau 60s rảnh → `Whisper unloaded ... loaded=False`.
+- Chặn lỗi: nếu lúc khởi động Chroma chưa sẵn sàng thì vocab **không ghi đè bằng rỗng**; `vocab.json` rỗng thì tự dựng lại. Sửa `test_transcriber_config` cho hành vi prompt mới (bias nối sau prompt cấu hình). Chốt: `WHISPER_MODEL_SIZE=medium` trên GPU.
+- **169 test OK** trong container.
+
 ## STT bắt thuật ngữ tiếng Anh: tự trích vocab từ tài liệu — 2026-10-18
 
 - `services/vocab_bias.py`: trích các thuật ngữ kỹ thuật (viết hoa/CamelCase/viết tắt, tên thư viện, từ có số/ký hiệu) từ chính tài liệu đã nạp, ưu tiên **tài liệu văn bản** (`.md/.txt/.rst`) hơn mã nguồn, xếp hạng "từ mạnh" trước để không bị nhiễu CSS/đường dẫn, rồi ghi `data/vocab.json`.

@@ -358,6 +358,21 @@ The analysis window is written to a temporary file for Whisper and deleted immed
 
 The Whisper model loads lazily on the first transcription. Call **Engine Metrics → Nạp trước model** (`POST /api/config/warmup`) before a session so the first hotkey press is not slowed by the load.
 
+## Choosing the speech model
+
+`tools/stt_benchmark.py` measures model size, latency and word error rate on real
+clips (with or without VAD and the transcript filters), so the choice is data-driven:
+
+```bash
+python tools/stt_benchmark.py --manifest bench.json --models tiny,base,small,medium \
+    --device cuda --compute-type float16
+```
+
+`bench.json` is a manifest of `{"id","audio_file","reference","lang"}` clips;
+`scripts/fetch_fleurs_vi.py` downloads real Vietnamese FLEURS audio with references.
+If VAD or the repetition filter raises WER on your clips, set
+`WHISPER_VAD_FILTER=false`.
+
 ---
 
 ## Voice & adversarial audit

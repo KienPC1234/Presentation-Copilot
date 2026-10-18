@@ -31,7 +31,8 @@ class TranscriberConfigTests(unittest.TestCase):
         def transcribe(path, **kwargs):
             self.service.set_language("en", "next prompt")
             self.assertEqual(kwargs["language"], "vi")
-            self.assertEqual(kwargs["initial_prompt"], "first prompt")
+            # The mined vocabulary is appended after the configured prompt.
+            self.assertTrue(kwargs["initial_prompt"].startswith("first prompt"))
             return iter([SimpleNamespace(text=" câu hỏi ")]), SimpleNamespace(language="vi", language_probability=1.0)
 
         self.service._model.transcribe.side_effect = transcribe

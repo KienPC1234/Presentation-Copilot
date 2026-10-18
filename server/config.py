@@ -30,6 +30,14 @@ class Settings(BaseSettings):
     whisper_compute_type: str = "int8"
     whisper_language: str = "vi"  # "vi", "en", "auto", "ja", "zh", etc.
     whisper_initial_prompt: str = "Thuyết trình bảo vệ dự án, phần mềm, công nghệ, kiến trúc, API, microservices, database, latency."
+    # Voice-activity trimming removes silence (and can clip quiet speech).
+    # Turn it off if the model is dropping the start/end of a question.
+    whisper_vad_filter: bool = True
+    whisper_vad_min_silence_ms: int = Field(default=300, ge=50, le=2000)
+    # Load the model in the background right after startup so the first hotkey is
+    # fast, and unload it after this many idle seconds (0 keeps it loaded forever).
+    whisper_preload: bool = True
+    whisper_idle_unload_seconds: int = Field(default=1800, ge=0, le=86400)
 
     # Storage
     chroma_persist_dir: str = "./data/chroma"

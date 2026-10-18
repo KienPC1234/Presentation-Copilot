@@ -94,7 +94,7 @@ async def lifespan(app: FastAPI):
     logger.info("Loading RAGService (ChromaDB) …")
     _rag = RAGService()
 
-    if not Path(settings.vocab_file).exists():
+    if not load_vocab(settings.vocab_file):
         try:
             await asyncio.to_thread(_rag.rebuild_vocab)
         except Exception:
@@ -107,9 +107,38 @@ async def lifespan(app: FastAPI):
     _documents = DocumentService(_rag)
     _normalizer = QuestionNormalizer()
 
+    background_tasks: list[asyncio.Task] = []
+
+    async def preload_speech_model() -> None:
+        """Load Whisper in the background so the first hotkey is not slow."""
+        try:
+            await asyncio.to_thread(_transcriber.ensure_loaded)  # type: ignore[union-attr]
+            logger.info("Whisper preloaded on %s", _transcriber.active_device())  # type: ignore[union-attr]
+        except Exception:
+            logger.warning("Whisper preload failed; it will load on first use", exc_info=True)
+
+    async def idle_unload_loop() -> None:
+        """Free the model after a long idle period so the GPU is not held forever."""
+        while True:
+            await asyncio.sleep(60)
+            try:
+                if await asyncio.to_thread(_transcriber.unload_if_idle,  # type: ignore[union-attr]
+                                           settings.whisper_idle_unload_seconds):
+                    logger.info("Whisper unloaded after %d s of inactivity",
+                                settings.whisper_idle_unload_seconds)
+            except Exception:
+                logger.debug("Idle-unload check failed", exc_info=True)
+
+    if settings.whisper_preload:
+        background_tasks.append(asyncio.create_task(preload_speech_model()))
+    if settings.whisper_idle_unload_seconds > 0:
+        background_tasks.append(asyncio.create_task(idle_unload_loop()))
+
     logger.info("All services loaded. Server ready.")
     yield
 
+    for task in background_tasks:
+        task.cancel()
     logger.info("Server shutdown complete.")
 
 
@@ -468,6 +497,8 @@ async def health_check() -> JSONResponse:
         "transcriber": _transcriber is not None,
         "whisper_model_loaded": _transcriber.is_model_loaded() if _transcriber else False,
         "whisper_device": _transcriber.active_device() if _transcriber else None,
+        "whisper_idle_seconds": (round(_transcriber.idle_seconds())
+                                 if _transcriber and _transcriber.is_model_loaded() else None),
         "rag": _rag is not None,
         "agent": _agent is not None,
         "documents": _documents is not None,
@@ -560,6 +591,8 @@ async def get_engine_config() -> JSONResponse:
         "whisper": whisper_cfg,
         "whisper_model_loaded": _transcriber.is_model_loaded() if _transcriber else False,
         "whisper_device": _transcriber.active_device() if _transcriber else None,
+        "whisper_idle_seconds": (round(_transcriber.idle_seconds())
+                                 if _transcriber and _transcriber.is_model_loaded() else None),
         "transcription_audio_format": settings.transcription_audio_format,
         "ollama_model": settings.ollama_model,
         "ollama_answer_model": settings.ollama_answer_model or settings.ollama_model,

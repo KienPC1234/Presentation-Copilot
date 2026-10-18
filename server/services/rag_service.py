@@ -241,11 +241,17 @@ class RAGService:
             return {"terms": 0}
         documents = payload.get("documents") or []
         metadatas = payload.get("metadatas") or []
+        if not documents:
+            logger.warning("Vocabulary bias skipped: the collection returned no chunks")
+            return {"terms": 0, "skipped": True}
         doc_suffixes = (".md", ".txt", ".rst")
         prose = [text for text, meta in zip(documents, metadatas)
                  if isinstance(meta, dict) and str(meta.get("source_name", "")).lower().endswith(doc_suffixes)]
         source = prose if len(prose) >= 20 else documents
         terms = extract_terms(source, limit=settings.vocab_bias_terms)
+        if not terms:
+            logger.warning("Vocabulary bias found no terms; keeping the previous file")
+            return {"terms": 0, "skipped": True}
         store_vocab(settings.vocab_file, terms)
         logger.info("Vocabulary bias: %d terms mined from %d/%d chunks",
                     len(terms), len(source), len(documents))

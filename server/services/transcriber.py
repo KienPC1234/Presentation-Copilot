@@ -1,5 +1,6 @@
 import logging
 import re
+import time
 from threading import RLock
 from faster_whisper import WhisperModel
 
@@ -45,6 +46,7 @@ class TranscriberService:
         self.initial_prompt: str = settings.whisper_initial_prompt
         self._model = None
         self._active_device: str | None = None
+        self._last_used: float = time.monotonic()
         logger.info(
             "Whisper model '%s' (lang=%s, device=%s, compute_type=%s) will load on first use",
             settings.whisper_model_size,
@@ -58,6 +60,27 @@ class TranscriberService:
 
     def active_device(self) -> str:
         return self._active_device or settings.whisper_device
+
+    def idle_seconds(self) -> float:
+        return time.monotonic() - self._last_used
+
+    def unload(self) -> None:
+        """Free the model (and its accelerator memory). The next use reloads it."""
+        with self._config_lock:
+            if self._model is None:
+                return
+            self._model = None
+            self._active_device = None
+            logger.info("Whisper model unloaded to free memory")
+
+    def unload_if_idle(self, max_idle_seconds: float) -> bool:
+        """Unload the model when it has not been used for a while. 0 disables it."""
+        if max_idle_seconds <= 0 or self._model is None:
+            return False
+        if self.idle_seconds() < max_idle_seconds:
+            return False
+        self.unload()
+        return True
 
     def ensure_loaded(self) -> None:
         """Load the Whisper model now, if it is not loaded yet.
@@ -83,6 +106,7 @@ class TranscriberService:
                 device, compute = "cpu", "int8"
             self._model = model
             self._active_device = device
+            self._last_used = time.monotonic()
             if self.language is not None and self.language not in model.supported_languages:
                 logger.warning("Configured language '%s' is unsupported by this model; using auto-detect",
                                self.language)
@@ -114,6 +138,7 @@ class TranscriberService:
         """Transcribe audio with custom language targeting and initial vocabulary prompt."""
         logger.debug("Transcribing audio: %s", audio_path)
         self.ensure_loaded()
+        self._last_used = time.monotonic()
         with self._config_lock:
             language, base_prompt = self.language, self.initial_prompt
         # Bias Whisper towards the project's own English/technical terms. The echo
@@ -125,8 +150,9 @@ class TranscriberService:
                 language=language,
                 initial_prompt=whisper_prompt or None,
                 language_detection_threshold=0.5,
-                vad_filter=True,
-                vad_parameters={"min_silence_duration_ms": 300},
+                vad_filter=settings.whisper_vad_filter,
+                vad_parameters=({"min_silence_duration_ms": settings.whisper_vad_min_silence_ms}
+                                if settings.whisper_vad_filter else None),
             )
             detected = info.language
             logger.info("Whisper detected language: %s (probability=%.2f)", detected, info.language_probability)

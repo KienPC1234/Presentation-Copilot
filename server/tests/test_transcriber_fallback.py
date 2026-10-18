@@ -63,6 +63,26 @@ class TranscriberFallbackTests(unittest.TestCase):
         service = module.TranscriberService()
         self.assertFalse(service.is_model_loaded())
 
+    def test_idle_unload_frees_the_model(self):
+        module = load_transcriber(make_settings("cpu"))
+        service = module.TranscriberService()
+        service.ensure_loaded()
+        self.assertTrue(service.is_model_loaded())
+        self.assertFalse(service.unload_if_idle(0), "0 disables unloading")
+        self.assertFalse(service.unload_if_idle(3600), "recently used stays loaded")
+        service._last_used -= 100
+        self.assertTrue(service.unload_if_idle(50))
+        self.assertFalse(service.is_model_loaded())
+
+    def test_model_reloads_after_unload(self):
+        module = load_transcriber(make_settings("cpu"))
+        service = module.TranscriberService()
+        service.ensure_loaded()
+        service.unload()
+        self.assertFalse(service.is_model_loaded())
+        service.ensure_loaded()
+        self.assertTrue(service.is_model_loaded())
+
     def test_prompt_echo_is_detected(self):
         module = load_transcriber(make_settings("cuda"))
         prompt = "Thuyết trình bảo vệ dự án, phần mềm, công nghệ, kiến trúc, API, microservices, database, latency."
