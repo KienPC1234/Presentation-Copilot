@@ -61,6 +61,8 @@ services:
       # (OLLAMA_URL is Compose-only; OLLAMA_BASE_URL stays for local runs.)
       OLLAMA_BASE_URL: ${OLLAMA_URL:-http://ollama:11434}
       OLLAMA_EMBEDDING_BASE_URL: ${OLLAMA_EMBEDDING_URL:-}
+      # ChromaDB telemetry phones home by default; disable it (privacy + noisy logs).
+      ANONYMIZED_TELEMETRY: "false"
     depends_on:
       - ollama
     restart: unless-stopped

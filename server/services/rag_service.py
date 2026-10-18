@@ -10,6 +10,7 @@ from langchain_community.document_loaders import PyPDFLoader, TextLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_ollama import OllamaEmbeddings
 from langchain_community.vectorstores import Chroma
+from chromadb.config import Settings as ChromaSettings
 
 from config import settings
 
@@ -64,6 +65,10 @@ class RAGService:
                 collection_name=_COLLECTION_NAME,
                 embedding_function=self._embeddings,
                 persist_directory=self._persist_dir,
+                # ChromaDB phones home by default. Disable it explicitly here so it
+                # does not depend on the environment of the wrapper. is_persistent
+                # must be set too, otherwise the wrapper builds an in-memory client.
+                client_settings=ChromaSettings(is_persistent=True, anonymized_telemetry=False),
             )
             count = self._vectorstore._collection.count()
             self._indexed_files = {metadata.get("source_path", "") for metadata in

@@ -41,6 +41,9 @@ logging.basicConfig(
     level=getattr(logging, settings.log_level.upper(), logging.INFO),
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
+# ChromaDB's optional telemetry logs noisy errors when it cannot reach posthog;
+# it is disabled, so silence the channel entirely.
+logging.getLogger("chromadb.telemetry").setLevel(logging.CRITICAL)
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
@@ -116,6 +119,17 @@ async def protect_api(request: Request, call_next):
                           request.headers.get("host")):
             return JSONResponse({"error": "Authorization required"}, status_code=401)
     return await call_next(request)
+
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    """Access log without the 30-second health probe noise."""
+    start = time.perf_counter()
+    response = await call_next(request)
+    if request.url.path not in ("/health", "/dashboard", "/", "/favicon.ico"):
+        logger.info("%s %s -> %s (%.0f ms)", request.method, request.url.path,
+                    response.status_code, (time.perf_counter() - start) * 1000)
+    return response
 
 
 # ---------------------------------------------------------------------------
@@ -545,6 +559,9 @@ async def get_engine_config() -> JSONResponse:
         "ollama_review_model": settings.ollama_review_model or settings.ollama_answer_model or settings.ollama_model,
         "ollama_base_url": settings.ollama_base_url,
         "response_style": settings.response_style,
+        "question_normalizer_enabled": settings.question_normalizer_enabled,
+        "question_normalizer_model": settings.question_normalizer_model
+        or settings.ollama_answer_model or settings.ollama_model,
     })
 
 

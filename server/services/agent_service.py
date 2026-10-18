@@ -431,7 +431,21 @@ class AgentService:
                 if getattr(settings, "response_style", "plain") == "technical":
                     messages = [SystemMessage(content=RESPONSE_STYLES["technical"] + "\n" + EXPERT_GROUNDING), messages[-1]]
                 response = self._plain_llm.invoke(messages)
-                parsed = parse_suggestion(response.content)
+                try:
+                    parsed = parse_suggestion(response.content)
+                except ValueError:
+                    # The composer occasionally returns JSON that breaks the schema
+                    # (too many steps, an oversized string). Ask once for a strict
+                    # shape instead of failing the whole answer.
+                    logger.warning("Composed answer failed schema validation; requesting a strict format")
+                    repaired = self._plain_llm.invoke(messages + [HumanMessage(content=json.dumps({
+                        "format_error": "The previous reply was not valid JSON for the schema.",
+                        "rules": "Return ONE JSON object and nothing else: key_point (string), "
+                                 "keywords (array of at most 5 short strings), framework_steps "
+                                 "(array of at most 4 strings, each at most 1000 characters). "
+                                 "No markdown fences, no extra text.",
+                    }, ensure_ascii=False))])
+                    parsed = parse_suggestion(repaired.content)
                 if missing_requested_example(question, parsed):
                     try:
                         response = self._plain_llm.invoke(messages + [SystemMessage(content=

@@ -138,7 +138,9 @@ class TranscriberService:
             if _echoes_prompt(transcript, initial_prompt):
                 logger.warning("Discarding a transcript that only echoes the biasing prompt: %.70s", transcript)
                 return ""
-            logger.info("Transcript: %s", transcript[:120])
+            # Keep meeting content out of INFO logs; the text is available at DEBUG.
+            logger.info("Transcript ready (%d characters)", len(transcript))
+            logger.debug("Transcript: %s", transcript[:200])
             return transcript
 
         except Exception:

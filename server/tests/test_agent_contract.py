@@ -91,6 +91,18 @@ class AgentContractTests(unittest.TestCase):
         self.assertEqual(self.agent._review_llm.invoke.call_count, 4)
         self.assertEqual(self.ctx.get_history(), [])
 
+    def test_invalid_composed_json_is_repaired_once(self):
+        self.agent._executor.invoke.return_value = {"intermediate_steps": []}
+        self.agent._plain_llm.invoke.side_effect = [
+            SimpleNamespace(content='{"key_point":"x","keywords":[],"framework_steps":"not a list"}'),
+            SimpleNamespace(content=json.dumps({"key_point": "ok", "keywords": [], "framework_steps": []})),
+        ]
+        with self.assertLogs(self.module.logger, level="WARNING"):
+            result = self.agent.run("question", self.ctx)
+        self.assertNotIn("error", result)
+        self.assertEqual(result["key_point"], "ok")
+        self.assertEqual(self.agent._plain_llm.invoke.call_count, 2)
+
     def test_bare_question_without_history_asks_for_clarification(self):
         result = self.agent.run("Tại sao?", self.ctx)
         self.assertEqual(result["review_status"], "clarification")
