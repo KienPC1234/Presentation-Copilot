@@ -1,5 +1,15 @@
 # Cập nhật: bảo mật, độ ổn định và kiểm tra logic AI
 
+## STT bắt thuật ngữ tiếng Anh: tự trích vocab từ tài liệu — 2026-10-18
+
+- `services/vocab_bias.py`: trích các thuật ngữ kỹ thuật (viết hoa/CamelCase/viết tắt, tên thư viện, từ có số/ký hiệu) từ chính tài liệu đã nạp, ưu tiên **tài liệu văn bản** (`.md/.txt/.rst`) hơn mã nguồn, xếp hạng "từ mạnh" trước để không bị nhiễu CSS/đường dẫn, rồi ghi `data/vocab.json`.
+- `transcriber` ghép danh sách này vào `initial_prompt` của Whisper (bias) → thuật ngữ tiếng Anh trong câu tiếng Việt dễ được nhận đúng hơn; guard "echo prompt" vẫn so với prompt gốc.
+- Vào lúc khởi động, nếu chưa có `vocab.json` thì tự dựng lại từ chỉ mục hiện có (không cần nạp lại tài liệu); mỗi lần ingest cũng dựng lại. `/api/config` báo `vocab_terms`.
+- Cấu hình: `VOCAB_FILE`, `VOCAB_BIAS_TERMS`.
+- Ví dụ thật: trước đây chỉ bắt `API`, `GPU`; sau khi bias, transcript bắt thêm `faster-whisper`, `docker sandbox`, `GPU`, và các thuật ngữ (một phần còn méo vì giọng espeak tổng hợp, không phải giọng người).
+- Thêm luật normalizer: **không được thêm thuật ngữ không hề xuất hiện** (ví dụ không được đổi "fun api" thành "FastAPI"), và nếu transcript là một danh sách từ thì giữ nguyên danh sách.
+- **167 test OK** trong container.
+
 ## Agent chuẩn hoá câu hỏi riêng — 2026-10-17
 
 - `services/question_normalizer.py`: một agent LLM **riêng** viết lại transcript thô thành MỘT câu hỏi rõ ràng, có dấu câu, dễ đọc; gộp câu lặp, bỏ từ đệm, sửa lỗi ASR rõ ràng của thuật ngữ khi đề tài đã chỉ rõ ý định. Tuyệt đối không thêm dữ kiện/số/tính năng, không trả lời, không dịch; nếu provider lỗi hoặc đầu ra không hợp lệ thì giữ nguyên transcript.

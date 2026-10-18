@@ -83,6 +83,11 @@ class Settings(BaseSettings):
     live_caption_interval_seconds: float = Field(default=2.5, ge=0.5, le=30)
     live_caption_window_seconds: int = Field(default=12, ge=3, le=60)
 
+    # Vocabulary biasing: mine technical terms from the indexed documents and
+    # append them to the Whisper prompt so English terms survive Vietnamese speech.
+    vocab_file: str = "./data/vocab.json"
+    vocab_bias_terms: int = Field(default=60, ge=0, le=200)
+
     # Logging
     log_level: str = "INFO"
 

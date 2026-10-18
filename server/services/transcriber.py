@@ -5,6 +5,7 @@ from faster_whisper import WhisperModel
 
 from config import settings
 from services.transcript import collapse_repetitions
+from services.vocab_bias import compose_prompt, load_vocab
 
 logger = logging.getLogger(__name__)
 
@@ -114,12 +115,15 @@ class TranscriberService:
         logger.debug("Transcribing audio: %s", audio_path)
         self.ensure_loaded()
         with self._config_lock:
-            language, initial_prompt = self.language, self.initial_prompt
+            language, base_prompt = self.language, self.initial_prompt
+        # Bias Whisper towards the project's own English/technical terms. The echo
+        # guard below still compares against the base prompt, not the mined list.
+        whisper_prompt = compose_prompt(base_prompt, load_vocab(settings.vocab_file))
         try:
             segments, info = self._model.transcribe(
                 audio_path,
                 language=language,
-                initial_prompt=initial_prompt or None,
+                initial_prompt=whisper_prompt or None,
                 language_detection_threshold=0.5,
                 vad_filter=True,
                 vad_parameters={"min_silence_duration_ms": 300},
@@ -135,7 +139,7 @@ class TranscriberService:
 
             transcript = " ".join(transcript_parts).strip()
             transcript = collapse_repetitions(transcript)
-            if _echoes_prompt(transcript, initial_prompt):
+            if _echoes_prompt(transcript, base_prompt):
                 logger.warning("Discarding a transcript that only echoes the biasing prompt: %.70s", transcript)
                 return ""
             # Keep meeting content out of INFO logs; the text is available at DEBUG.

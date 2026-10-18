@@ -31,6 +31,7 @@ from services.defense_service import DefenseService
 from services.document_service import DocumentService
 from services.document_kinds import DOCUMENT_KINDS, KIND_LABELS, LANGUAGES
 from services.question_normalizer import QuestionNormalizer
+from services.vocab_bias import load_vocab
 from services import audio_buffer, maintenance, path_browser
 from services.live_caption import should_emit
 
@@ -92,6 +93,12 @@ async def lifespan(app: FastAPI):
 
     logger.info("Loading RAGService (ChromaDB) …")
     _rag = RAGService()
+
+    if not Path(settings.vocab_file).exists():
+        try:
+            await asyncio.to_thread(_rag.rebuild_vocab)
+        except Exception:
+            logger.warning("Could not build the vocabulary bias file", exc_info=True)
 
     logger.info("Loading AgentService (Ollama + Tools) …")
     _agent = AgentService(_rag)
@@ -562,6 +569,7 @@ async def get_engine_config() -> JSONResponse:
         "question_normalizer_enabled": settings.question_normalizer_enabled,
         "question_normalizer_model": settings.question_normalizer_model
         or settings.ollama_answer_model or settings.ollama_model,
+        "vocab_terms": len(load_vocab(settings.vocab_file)),
     })
 
 

@@ -13,6 +13,7 @@ from langchain_community.vectorstores import Chroma
 from chromadb.config import Settings as ChromaSettings
 
 from config import settings
+from services.vocab_bias import extract_terms, store_vocab
 
 logger = logging.getLogger(__name__)
 
@@ -210,6 +211,8 @@ class RAGService:
             self._indexed_files = {m["source_path"] for m in refreshed["metadatas"] if m and m.get("source_path")}
             self._pending_write.unlink()
 
+        self.rebuild_vocab()
+
         return {
             "status": "success",
             "chunks_ingested": len(unique),
@@ -217,6 +220,36 @@ class RAGService:
             "chunks_removed": len(stale_ids),
             "target_path": target_path
         }
+
+    @_serialized
+    def rebuild_vocab(self) -> dict[str, Any]:
+        """Mine technical terms from the indexed chunks for Whisper biasing.
+
+        Prose documents (markdown/text) give far better spoken terms than source
+        code, so they are preferred when there are enough of them.
+        """
+        if settings.vocab_bias_terms <= 0:
+            return {"terms": 0}
+        if self._vectorstore is None:
+            self._load_existing_store()
+        if self._vectorstore is None:
+            return {"terms": 0}
+        try:
+            payload = self._vectorstore._collection.get(include=["documents", "metadatas"])
+        except Exception:
+            logger.exception("Could not read chunks for the vocabulary")
+            return {"terms": 0}
+        documents = payload.get("documents") or []
+        metadatas = payload.get("metadatas") or []
+        doc_suffixes = (".md", ".txt", ".rst")
+        prose = [text for text, meta in zip(documents, metadatas)
+                 if isinstance(meta, dict) and str(meta.get("source_name", "")).lower().endswith(doc_suffixes)]
+        source = prose if len(prose) >= 20 else documents
+        terms = extract_terms(source, limit=settings.vocab_bias_terms)
+        store_vocab(settings.vocab_file, terms)
+        logger.info("Vocabulary bias: %d terms mined from %d/%d chunks",
+                    len(terms), len(source), len(documents))
+        return {"terms": len(terms)}
 
     @_serialized
     def clear_store(self) -> bool:

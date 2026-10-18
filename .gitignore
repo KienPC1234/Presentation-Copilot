@@ -48,6 +48,7 @@ server/data/tmp/
 server/data/hf-cache/
 server/data/audio/
 server/data/audit*/
+server/data/vocab.json
 server/data/admin-settings.json
 server/data/.api-token
 *.wav
